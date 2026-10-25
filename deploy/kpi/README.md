@@ -1,7 +1,16 @@
 # Deployment — kpi.namirahamrah.ir
 
+Live at **https://kpi.namirahamrah.ir** — Let's Encrypt certificate (auto-renew
+via `certbot.timer`), HTTP/2, HSTS, `http://` redirects to `https://`.
+
 Host: `194.56.148.100` (Ubuntu 24.04, 2 vCPU / 3.8 GB). Three pm2 processes,
-PostgreSQL 16 on loopback, nginx in front, Let's Encrypt for TLS.
+PostgreSQL 16 on loopback, nginx in front.
+
+**DNS must be single-valued.** A stale second A record for the hostname (a
+parking record pointing at a shared hosting IP) makes certbot fail during
+secondary validation and sends half the visitors to a 404 — that is exactly what
+happened the first time. `dig +short A kpi.namirahamrah.ir` must return only
+`194.56.148.100`.
 
 | What | Where |
 | --- | --- |
