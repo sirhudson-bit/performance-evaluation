@@ -1,0 +1,110 @@
+@import '@fontsource-variable/vazirmatn';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Vazirmatn is applied to `html`, and form controls inherit it explicitly
+ * (form controls do not inherit fonts by default — without this rule inputs
+ * render in a different typeface).
+ */
+:root {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+html {
+  font-family: 'Vazirmatn Variable', 'Vazirmatn', system-ui, sans-serif;
+}
+
+body {
+  @apply bg-canvas text-slate-800 antialiased;
+}
+html.dark body {
+  @apply bg-slate-950 text-slate-100;
+}
+
+/*
+ * Dark-mode contrast safety net.
+ *
+ * Some elements author a light-surface colour (dark navy text, a white card, a
+ * slate-200 border) without a matching `dark:` variant. On a dark background
+ * those become unreadable — dark blue on near-black — or glaring white.
+ *
+ * Every selector is wrapped in `:where()`, which contributes ZERO specificity.
+ * That matters: a real `dark:` utility on the same element has normal class
+ * specificity and therefore still wins, so this block only fills the gaps and
+ * never overrides a deliberate dark colour. Scoped to `html.dark`, so light
+ * mode is completely unaffected.
+ */
+html.dark :where(.text-slate-950, .text-slate-900, .text-slate-800, .text-black) { color: #f8fafc; }
+html.dark :where(.text-slate-700) { color: #e2e8f0; }
+html.dark :where(.text-slate-600) { color: #cbd5e1; }
+html.dark :where(.text-slate-500) { color: #a9b6c8; }
+html.dark :where(.text-slate-400) { color: #94a3b8; }
+
+/* Brand (deep navy) text is the worst offender on a dark surface. */
+html.dark :where(.text-brand-900, .text-brand-800, .text-brand-700) { color: #93c5fd; }
+html.dark :where(.text-brand-600, .text-brand-500) { color: #bfdbfe; }
+
+/* Accent text authored for light-toned badges. */
+html.dark :where(.text-emerald-800, .text-emerald-700) { color: #6ee7b7; }
+html.dark :where(.text-amber-900, .text-amber-800, .text-amber-700) { color: #fcd34d; }
+html.dark :where(.text-rose-800, .text-rose-700) { color: #fda4af; }
+html.dark :where(.text-sky-800, .text-sky-700) { color: #7dd3fc; }
+
+/* Light surfaces become dark surfaces. */
+html.dark :where(.bg-white) { background-color: #0f172a; }
+html.dark :where(.bg-slate-50) { background-color: #0b1220; }
+html.dark :where(.bg-slate-100) { background-color: #1e293b; }
+
+/* Borders and dividers. */
+html.dark :where(.border-slate-300) { border-color: #334155; }
+html.dark :where(.border-slate-100, .border-slate-200) { border-color: #1e293b; }
+html.dark :where(.divide-slate-100, .divide-slate-200) > :not([hidden]) ~ :not([hidden]) { border-color: #1e293b; }
+
+/* Placeholders must stay legible (WCAG 1.4.3) but quieter than real values. */
+html.dark ::placeholder { color: #8593a8; opacity: 1; }
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+/* Consistent, visible focus ring for keyboard users (WCAG 2.4.7). */
+:focus-visible {
+  outline: 2px solid theme('colors.brand.600');
+  outline-offset: 2px;
+}
+
+/* Respect reduced-motion for every transition/animation. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Numeric columns stay right-aligned in the RTL layout. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.skip-link {
+  position: absolute;
+  inset-inline-start: -9999px;
+  top: 0.5rem;
+  z-index: 100;
+}
+.skip-link:focus {
+  inset-inline-start: 0.5rem;
+  @apply rounded bg-brand-700 px-4 py-2 text-white;
+}

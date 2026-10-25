@@ -1,0 +1,67 @@
+{
+  "name": "performance-evaluation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "سامانه ارزیابی عملکرد کارکنان — Persian, RTL, enterprise performance evaluation platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.cjs",
+    "dev:servers": "concurrently -k -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "postinstall": "node scripts/postinstall.cjs",
+    "setup": "npm install --include=dev && npm run db:generate && npm run db:deploy && npm run db:seed",
+    "dev:api": "npm run dev -w @pe/api",
+    "dev:web": "npm run dev -w @pe/web",
+    "dev:worker": "npm run dev -w @pe/worker",
+    "build": "npm run build -w @pe/api && npm run build -w @pe/web",
+    "start:api": "npm run start -w @pe/api",
+    "start:web": "npm run start -w @pe/web",
+    "worker": "npm run start -w @pe/worker",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset --force",
+    "db:seed": "tsx database/seeds/seed.ts",
+    "db:studio": "prisma studio",
+    "verify": "node scripts/verify.cjs",
+    "check": "npm run typecheck && npm run lint && npm test"
+  },
+  "prisma": {
+    "schema": "database/schema.prisma",
+    "seed": "tsx database/seeds/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.1.0",
+    "bcryptjs": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.10.2",
+    "@types/supertest": "^6.0.2",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "concurrently": "^9.1.0",
+    "eslint": "^9.17.0",
+    "prisma": "^6.1.0",
+    "supertest": "^7.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "allowScripts": {
+    "prisma@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.21.5": true,
+    "@prisma/client@6.19.3": true
+  }
+}

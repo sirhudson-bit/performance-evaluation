@@ -1,0 +1,1380 @@
+// ===========================================================================
+// سامانه ارزیابی عملکرد کارکنان — Prisma schema
+//
+// Conventions (matching the rest of the platform):
+//   * snake_case tables/columns via @@map / @map.
+//   * Money is Decimal(15,2), never floating point.
+//   * Scores are Decimal(7,4) (4 dp internally).
+//   * Status columns are String (not Postgres enums) so a new state never
+//     requires a migration. Valid values live in @pe/shared ENUMS.
+//   * Every organization-owned table carries organization_id so cross-org
+//     scoping is enforced in one place. Single-record reads of a foreign id
+//     resolve to 404 (never 403), so existence is never confirmed.
+//   * "Actor" columns (created_by / actor_id) are plain indexed Int without a
+//     foreign key on purpose: a user can be deactivated but their audit trail
+//     must survive, and the authoritative actor record is audit_logs.
+// ===========================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Organization, structure and people
+// ---------------------------------------------------------------------------
+
+model Organization {
+  id        Int      @id @default(autoincrement())
+  name      String
+  legalName String?  @map("legal_name")
+  slug      String   @unique
+  status    String   @default("active") // active | suspended | archived
+  timezone  String   @default("Asia/Tehran")
+  locale    String   @default("fa-IR")
+  calendar  String   @default("jalali") // jalali | gregorian
+  currency  String   @default("IRT")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  units                  OrganizationUnit[]
+  positions              Position[]
+  employees              Employee[]
+  users                  User[]
+  roles                  Role[]
+  questionCategories     QuestionCategory[]
+  questions              Question[]
+  forms                  EvaluationForm[]
+  scoringPolicies        ScoringPolicyVersion[]
+  workflows              Workflow[]
+  periods                EvaluationPeriod[]
+  cycles                 EvaluationCycle[]
+  assignments            EvaluationAssignment[]
+  responses              EvaluationResponse[]
+  scores                 EvaluationScore[]
+  results                FinalEvaluationResult[]
+  reviews                EvaluationReview[]
+  appeals                AppealRequest[]
+  improvementPlans       ImprovementPlan[]
+  compensationPolicies   CompensationPolicy[]
+  compensationRecs       CompensationRecommendation[]
+  compensationApprovals  CompensationApproval[]
+  aiProviders            AiProvider[]
+  aiUseCasePolicies      AiUseCasePolicy[]
+  aiUsageEvents          AiUsageEvent[]
+  aiConversations        AiConversation[]
+  auditLogs              AuditLog[]
+  notifications          Notification[]
+  settings               Setting[]
+  complianceProfile      ComplianceProfile?
+  thirdPartyServices     ThirdPartyService[]
+  consentPreferences     ConsentPreference[]
+  importJobs             ImportJob[]
+  exportJobs             ExportJob[]
+  jobs                   Job[]
+  helpArticles           HelpArticle[]
+  helpFaqs               HelpFaq[]
+  helpGlossary           HelpGlossary[]
+  assets                 Asset[]
+  tickets                SupportTicket[]
+  processes              PerformanceProcess[]
+  agreements             PerformanceAgreement[]
+
+  @@map("organizations")
+}
+
+model OrganizationUnit {
+  id             Int       @id @default(autoincrement())
+  organizationId Int       @map("organization_id")
+  parentId       Int?      @map("parent_id")
+  name           String
+  code           String?
+  type           String    @default("department") // department | subdepartment | team | division
+  sortOrder      Int       @default(0) @map("sort_order")
+  status         String    @default("active")
+  effectiveFrom  DateTime? @map("effective_from")
+  effectiveTo    DateTime? @map("effective_to")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       OrganizationUnit?  @relation("UnitTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children     OrganizationUnit[] @relation("UnitTree")
+  positions    Position[]
+  employees    Employee[]
+  users        User[]            @relation("UnitUsers")
+
+  @@unique([organizationId, code])
+  @@index([organizationId, parentId])
+  @@map("organization_units")
+}
+
+model Position {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  unitId         Int?     @map("unit_id")
+  title          String
+  code           String?
+  level          String?
+  status         String   @default("active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit         OrganizationUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  employees    Employee[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, unitId])
+  @@map("positions")
+}
+
+model Employee {
+  id             Int       @id @default(autoincrement())
+  organizationId Int       @map("organization_id")
+  userId         Int?      @unique @map("user_id")
+  employeeNo     String    @map("employee_no")
+  firstName      String    @map("first_name")
+  lastName       String    @map("last_name")
+  displayName    String?   @map("display_name")
+  // Optional contact fields — collected only when the organization needs them.
+  email          String?
+  phone          String?
+  unitId         Int?      @map("unit_id")
+  positionId     Int?      @map("position_id")
+  managerId      Int?      @map("manager_id")
+  hireDate       DateTime? @map("hire_date")
+  status         String    @default("active") // active | inactive | terminated | archived
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  unit           OrganizationUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  position       Position?         @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  manager        Employee?         @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  reports        Employee[]        @relation("EmployeeManager")
+  managerHistory EmployeeManagerHistory[] @relation("HistorySubject")
+  managedHistory EmployeeManagerHistory[] @relation("HistoryManager")
+  assignmentsSubject EvaluationAssignment[]
+  appealRequests AppealRequest[]
+  results        FinalEvaluationResult[]
+  improvementPlans ImprovementPlan[]
+  compensationRecs CompensationRecommendation[]
+  agreements     PerformanceAgreement[]
+
+  @@unique([organizationId, employeeNo])
+  @@index([organizationId, unitId])
+  @@index([organizationId, managerId])
+  @@map("employees")
+}
+
+model EmployeeManagerHistory {
+  id                Int       @id @default(autoincrement())
+  organizationId    Int       @map("organization_id")
+  employeeId        Int       @map("employee_id")
+  managerEmployeeId Int?      @map("manager_employee_id")
+  unitId            Int?      @map("unit_id")
+  positionId        Int?      @map("position_id")
+  effectiveFrom     DateTime  @map("effective_from")
+  effectiveTo       DateTime? @map("effective_to")
+  reason            String?
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  employee Employee  @relation("HistorySubject", fields: [employeeId], references: [id], onDelete: Cascade)
+  manager  Employee? @relation("HistoryManager", fields: [managerEmployeeId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, employeeId, effectiveFrom])
+  @@map("employee_manager_history")
+}
+
+// ---------------------------------------------------------------------------
+// Identity, sessions and access control
+// ---------------------------------------------------------------------------
+
+model User {
+  id             Int       @id @default(autoincrement())
+  organizationId Int?      @map("organization_id")
+  name           String
+  email          String
+  phone          String?
+  passwordHash   String    @map("password_hash")
+  status         String    @default("active") // active | suspended | archived
+  isPlatformAdmin Boolean  @default(false) @map("is_platform_admin")
+  mfaEnabled     Boolean   @default(false) @map("mfa_enabled")
+  mfaSecret      String?   @map("mfa_secret")
+  preferredLanguage String @default("fa") @map("preferred_language")
+  themePreference String @default("light") @map("theme_preference") // light | dark | system
+  departmentId   Int?     @map("department_id")
+  toursState     Json?    @map("tours_state")
+  lastLoginAt    DateTime? @map("last_login_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  department   OrganizationUnit? @relation("UnitUsers", fields: [departmentId], references: [id], onDelete: SetNull)
+  employee     Employee?
+  sessions     Session[]
+  roles        UserRole[]
+  resetTokens  PasswordResetToken[]
+  notifications Notification[]
+  consentPreferences ConsentPreference[]
+  helpProgress UserHelpProgress[]
+  aiConversations AiConversation[]
+  tickets      SupportTicket[] @relation("TicketCreator")
+  assignedTickets SupportTicket[] @relation("TicketAssignee")
+  ticketMessages TicketMessage[]
+
+  @@unique([organizationId, email])
+  @@index([email])
+  @@map("users")
+}
+
+model Session {
+  id           String   @id // opaque random token
+  userId       Int      @map("user_id")
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  payload      String   @default("{}")
+  lastActivity Int      @map("last_activity") // unix seconds
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model Role {
+  id             Int      @id @default(autoincrement())
+  organizationId Int?     @map("organization_id")
+  key            String
+  name           String
+  description    String?
+  isProtected    Boolean  @default(false) @map("is_protected")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  permissions  RolePermission[]
+  users        UserRole[]
+
+  @@unique([organizationId, key])
+  @@map("roles")
+}
+
+model Permission {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  category    String
+  description String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  roleId     Int      @map("role_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id           Int @id @default(autoincrement())
+  roleId       Int @map("role_id")
+  permissionId Int @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// ---------------------------------------------------------------------------
+// Question bank (versioned)
+// ---------------------------------------------------------------------------
+
+model QuestionCategory {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  parentId       Int?     @map("parent_id")
+  name           String
+  sortOrder      Int      @default(0) @map("sort_order")
+  status         String   @default("active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  questions    Question[]
+
+  @@index([organizationId])
+  @@map("question_categories")
+}
+
+model Question {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  stableKey      String   @map("stable_key") // stable identifier across versions
+  categoryId     Int?     @map("category_id")
+  title          String
+  text           String
+  guidance       String?
+  // Person/class being evaluated (self | manager | employee | peer | report | other).
+  subjectType    String   @default("employee") @map("subject_type")
+  // Authorized respondents (evaluator roles), stored as JSON array.
+  respondentRoles Json    @default("[]") @map("respondent_roles")
+  answerType     String   @map("answer_type")
+  required       Boolean  @default(true)
+  weight         Decimal  @default(1) @db.Decimal(7,3)
+  // Scoring criteria / bounds / multi-choice rule, e.g.
+  // { max, min, unit, scale:[...], multiChoice:{mode,partial} }
+  scoring        Json     @default("{}")
+  // Conditional visibility rule, e.g. { when:{ questionStableKey, equals } }.
+  condition      Json?    @map("condition")
+  currentVersion Int      @default(1) @map("current_version")
+  status         String   @default("draft") // draft | active | inactive | archived
+  sortOrder      Int      @default(0) @map("sort_order")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category     QuestionCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  versions     QuestionVersion[]
+  options      QuestionOption[]
+
+  @@unique([organizationId, stableKey])
+  @@index([organizationId, categoryId])
+  @@index([organizationId, status])
+  @@map("questions")
+}
+
+/// Immutable snapshot of a question at a point in time. A published form
+/// references a QuestionVersion row, never the mutable Question.
+model QuestionVersion {
+  id           Int      @id @default(autoincrement())
+  questionId   Int      @map("question_id")
+  version      Int
+  snapshot     Json     // full question + options + scoring at this version
+  createdBy    Int?     @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  question    Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  formQuestions FormQuestion[]
+
+  @@unique([questionId, version])
+  @@map("question_versions")
+}
+
+model QuestionOption {
+  id         Int      @id @default(autoincrement())
+  questionId Int      @map("question_id")
+  label      String
+  value      String
+  score      Decimal? @db.Decimal(7,3)
+  isNotApplicable Boolean @default(false) @map("is_not_applicable")
+  sortOrder  Int      @default(0) @map("sort_order")
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("question_options")
+}
+
+// ---------------------------------------------------------------------------
+// Forms (versioned) and scoring policies
+// ---------------------------------------------------------------------------
+
+model ScoringPolicyVersion {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  name           String
+  version        Int
+  model          String   @default("normalized_weighted_average")
+  config         Json     // round, requireComplete, allowWeightNormalization, weightTarget, unansweredPolicy
+  status         String   @default("draft") // draft | active | archived
+  createdBy      Int?     @map("created_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  formVersions FormVersion[]
+  cycles       EvaluationCycle[]
+  results      FinalEvaluationResult[]
+
+  @@unique([organizationId, name, version])
+  @@map("scoring_policy_versions")
+}
+
+model Workflow {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  name           String
+  version        Int      @default(1)
+  config         Json     // { selfAssessment, requiredEvaluators, stages:[...] }
+  status         String   @default("active")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cycles       EvaluationCycle[]
+
+  @@unique([organizationId, name, version])
+  @@map("workflows")
+}
+
+model EvaluationForm {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  name           String
+  description    String?
+  status         String   @default("draft") // draft | published | archived
+  currentVersion Int?     @map("current_version")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  versions     FormVersion[]
+
+  @@index([organizationId])
+  @@map("evaluation_forms")
+}
+
+/// A published form version is immutable: questions/options/scoring are frozen.
+model FormVersion {
+  id                  Int      @id @default(autoincrement())
+  formId              Int      @map("form_id")
+  version             Int
+  status              String   @default("draft") // draft | in_review | published | archived
+  scoringPolicyId     Int?     @map("scoring_policy_id")
+  confidentialityMode String   @default("named") @map("confidentiality_mode") // named | confidential | anonymous
+  selfAssessment      Boolean  @default(false) @map("self_assessment")
+  // Peer/subject aggregation threshold for anonymised feedback.
+  anonymityThreshold  Int      @default(3) @map("anonymity_threshold")
+  notes               String?
+  publishedAt         DateTime? @map("published_at")
+  createdBy           Int?     @map("created_by")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  form           EvaluationForm  @relation(fields: [formId], references: [id], onDelete: Cascade)
+  scoringPolicy  ScoringPolicyVersion? @relation(fields: [scoringPolicyId], references: [id], onDelete: SetNull)
+  sections       FormSection[]
+  questions      FormQuestion[]
+  assignments    EvaluationAssignment[]
+  cycles         EvaluationCycle[]
+
+  @@unique([formId, version])
+  @@map("form_versions")
+}
+
+model FormSection {
+  id            Int      @id @default(autoincrement())
+  formVersionId Int      @map("form_version_id")
+  title         String
+  description   String?
+  weight        Decimal  @default(0) @db.Decimal(7,3)
+  sortOrder     Int      @default(0) @map("sort_order")
+
+  formVersion FormVersion   @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
+  questions   FormQuestion[]
+
+  @@index([formVersionId])
+  @@map("form_sections")
+}
+
+model FormQuestion {
+  id                Int      @id @default(autoincrement())
+  formVersionId     Int      @map("form_version_id")
+  sectionId         Int      @map("section_id")
+  questionVersionId Int      @map("question_version_id")
+  weight            Decimal  @default(1) @db.Decimal(7,3)
+  required          Boolean  @default(true)
+  sortOrder         Int      @default(0) @map("sort_order")
+  condition         Json?    // frozen conditional-visibility rule
+  /// Calculated (quantitative) indicator: when true the answer is derived from
+  /// other answers via `formula` instead of being entered directly.
+  computed          Boolean  @default(false)
+  formula           Json?    // { expression: "quality * 0.5 + teamwork * 0.5" }
+
+  formVersion     FormVersion     @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
+  section         FormSection     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  questionVersion QuestionVersion @relation(fields: [questionVersionId], references: [id], onDelete: Restrict)
+
+  @@index([formVersionId])
+  @@index([sectionId])
+  @@map("form_questions")
+}
+
+// ---------------------------------------------------------------------------
+// Evaluation periods, cycles and assignments
+// ---------------------------------------------------------------------------
+
+model EvaluationPeriod {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  name           String
+  type           String   @default("custom") // monthly | quarterly | annual | custom
+  startDate      DateTime @map("start_date")
+  endDate        DateTime @map("end_date")
+  status         String   @default("active")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cycles       EvaluationCycle[]
+
+  @@index([organizationId])
+  @@map("evaluation_periods")
+}
+
+model EvaluationCycle {
+  id                   Int       @id @default(autoincrement())
+  organizationId       Int       @map("organization_id")
+  periodId             Int?      @map("period_id")
+  name                 String
+  formVersionId        Int       @map("form_version_id")
+  workflowId           Int?      @map("workflow_id")
+  scoringPolicyId      Int?      @map("scoring_policy_id")
+  compensationPolicyId Int?      @map("compensation_policy_id")
+  processId            Int?      @map("process_id")
+  confidentialityMode  String    @default("named") @map("confidentiality_mode")
+  selfAssessment       Boolean   @default(false) @map("self_assessment")
+  appealEnabled        Boolean   @default(false) @map("appeal_enabled")
+  startDate            DateTime  @map("start_date")
+  endDate              DateTime  @map("end_date")
+  submissionDeadline   DateTime? @map("submission_deadline")
+  publicationRule      String    @default("auto_on_approve") @map("publication_rule") // auto_on_approve | manual
+  status               String    @default("draft") // draft | active | in_review | published | closed | cancelled
+  config               Json      @default("{}")
+  createdBy            Int?      @map("created_by")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  period         EvaluationPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  formVersion    FormVersion     @relation(fields: [formVersionId], references: [id], onDelete: Restrict)
+  workflow       Workflow?       @relation(fields: [workflowId], references: [id], onDelete: SetNull)
+  scoringPolicy  ScoringPolicyVersion? @relation(fields: [scoringPolicyId], references: [id], onDelete: SetNull)
+  compensationPolicy CompensationPolicy? @relation(fields: [compensationPolicyId], references: [id], onDelete: SetNull)
+  process        PerformanceProcess? @relation(fields: [processId], references: [id], onDelete: SetNull)
+  assignments    EvaluationAssignment[]
+  results        FinalEvaluationResult[]
+  appeals        AppealRequest[]
+  steps          CycleStep[]
+
+  @@index([organizationId, status])
+  @@map("evaluation_cycles")
+}
+
+model EvaluationAssignment {
+  id             Int       @id @default(autoincrement())
+  organizationId Int       @map("organization_id")
+  cycleId        Int       @map("cycle_id")
+  employeeId     Int       @map("employee_id")
+  evaluatorRole  String    @map("evaluator_role") // self | manager | peer | report | hr | other
+  evaluatorUserId Int?     @map("evaluator_user_id")
+  evaluatorEmployeeId Int? @map("evaluator_employee_id")
+  weight         Decimal   @default(0) @db.Decimal(7,3)
+  status         String    @default("draft")
+  dueDate        DateTime? @map("due_date")
+  submittedAt    DateTime? @map("submitted_at")
+  formVersionId  Int       @map("form_version_id")
+  // Snapshot of questions/weights at assignment time (belt-and-braces immutability).
+  versionSnapshot Json?    @map("version_snapshot")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cycle        EvaluationCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  formVersion  FormVersion   @relation(fields: [formVersionId], references: [id], onDelete: Restrict)
+  responses    EvaluationResponse[]
+  scores       EvaluationScore[]
+  reviews      EvaluationReview[]
+
+  @@unique([cycleId, employeeId, evaluatorRole, evaluatorUserId])
+  @@index([organizationId, evaluatorUserId, status])
+  @@index([cycleId, status])
+  @@map("evaluation_assignments")
+}
+
+model EvaluationResponse {
+  id                Int      @id @default(autoincrement())
+  organizationId    Int      @map("organization_id")
+  assignmentId      Int      @map("assignment_id")
+  formQuestionId    Int      @map("form_question_id")
+  questionVersionId Int      @map("question_version_id")
+  answerType        String   @map("answer_type")
+  value             Json     @default("{}") // raw answer (option values, text, number…)
+  score             Decimal? @db.Decimal(7,4) // normalized 0–100, null when text/NA
+  isNotApplicable   Boolean  @default(false) @map("is_not_applicable")
+  answeredAt        DateTime @default(now()) @map("answered_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignment   EvaluationAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, formQuestionId])
+  @@index([assignmentId])
+  @@map("evaluation_responses")
+}
+
+model EvaluationScore {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  assignmentId   Int      @map("assignment_id")
+  sectionId      Int?     @map("section_id")
+  sectionScore   Decimal? @db.Decimal(7,4) @map("section_score")
+  formScore      Decimal? @db.Decimal(7,4) @map("form_score")
+  detail         Json     @default("{}")
+  computedAt     DateTime @default(now()) @map("computed_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignment   EvaluationAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId])
+  @@map("evaluation_scores")
+}
+
+model FinalEvaluationResult {
+  id                   Int      @id @default(autoincrement())
+  organizationId       Int      @map("organization_id")
+  cycleId              Int      @map("cycle_id")
+  employeeId           Int      @map("employee_id")
+  finalScore           Decimal? @db.Decimal(7,4) @map("final_score")
+  scoringPolicyVersionId Int?   @map("scoring_policy_version_id")
+  breakdown            Json     @default("{}") // per-evaluator + per-section detail
+  status               String   @default("draft") // draft | published | reopened | appealed
+  publishedAt          DateTime? @map("published_at")
+  publishedBy          Int?     @map("published_by")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cycle        EvaluationCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  scoringPolicy ScoringPolicyVersion? @relation(fields: [scoringPolicyVersionId], references: [id], onDelete: SetNull)
+
+  @@unique([cycleId, employeeId])
+  @@index([organizationId, status])
+  @@map("final_evaluation_results")
+}
+
+model EvaluationReview {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  assignmentId   Int      @map("assignment_id")
+  reviewerId     Int?     @map("reviewer_id")
+  action         String   // review | approve | return
+  comment        String?
+  fromStatus     String   @map("from_status")
+  toStatus       String   @map("to_status")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignment   EvaluationAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId])
+  @@map("evaluation_reviews")
+}
+
+model AppealRequest {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  cycleId        Int      @map("cycle_id")
+  employeeId     Int      @map("employee_id")
+  reason         String
+  status         String   @default("open") // open | under_review | accepted | rejected | withdrawn
+  reviewerId     Int?     @map("reviewer_id")
+  decision       String?
+  decidedAt      DateTime? @map("decided_at")
+  scoreBefore    Decimal? @db.Decimal(7,4) @map("score_before")
+  scoreAfter     Decimal? @db.Decimal(7,4) @map("score_after")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cycle        EvaluationCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@map("appeal_requests")
+}
+
+model ImprovementPlan {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  employeeId     Int      @map("employee_id")
+  cycleId        Int?     @map("cycle_id")
+  title          String
+  actions        Json     @default("[]")
+  status         String   @default("draft")
+  ownerUserId    Int?     @map("owner_user_id")
+  dueDate        DateTime? @map("due_date")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, employeeId])
+  @@map("improvement_plans")
+}
+
+// ---------------------------------------------------------------------------
+// Compensation / promotion (recommendation only, never automatic payroll)
+// ---------------------------------------------------------------------------
+
+model CompensationPolicy {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  name           String
+  version        Int      @default(1)
+  mode           String   @default("recommendation") // recommendation | policy
+  effectiveFrom  DateTime @map("effective_from")
+  effectiveTo    DateTime? @map("effective_to")
+  // { rules:[{minScore,maxScore,type,value,min,max}], budget, eligibility, approvalRoleKeys, exceptions }
+  config         Json     @default("{}")
+  status         String   @default("draft") // draft | active | archived
+  createdBy      Int?     @map("created_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cycles       EvaluationCycle[]
+  recommendations CompensationRecommendation[]
+
+  @@unique([organizationId, name, version])
+  @@map("compensation_policies")
+}
+
+model CompensationRecommendation {
+  id                    Int      @id @default(autoincrement())
+  organizationId        Int      @map("organization_id")
+  cycleId               Int?     @map("cycle_id")
+  employeeId            Int      @map("employee_id")
+  compensationPolicyId  Int?     @map("compensation_policy_id")
+  mode                  String   @default("recommendation")
+  inputScore            Decimal? @db.Decimal(7,4) @map("input_score")
+  proposedType          String?  @map("proposed_type") // percent | amount | promotion
+  proposedValue         Decimal? @db.Decimal(15,2) @map("proposed_value")
+  status                String   @default("proposed")
+  rationale             String?
+  createdBy             Int?     @map("created_by")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  policy       CompensationPolicy? @relation(fields: [compensationPolicyId], references: [id], onDelete: SetNull)
+  approvals    CompensationApproval[]
+
+  @@index([organizationId, status])
+  @@map("compensation_recommendations")
+}
+
+model CompensationApproval {
+  id                Int      @id @default(autoincrement())
+  organizationId    Int      @map("organization_id")
+  recommendationId  Int      @map("recommendation_id")
+  approverId        Int?     @map("approver_id")
+  decision          String   // approved | rejected
+  reason            String?
+  isOverride        Boolean  @default(false) @map("is_override")
+  overrideReason    String?  @map("override_reason")
+  decidedAt         DateTime @default(now()) @map("decided_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recommendation CompensationRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+
+  @@index([recommendationId])
+  @@map("compensation_approvals")
+}
+
+// ---------------------------------------------------------------------------
+// AI integration (provider adapters, encrypted keys, usage without prompts)
+// ---------------------------------------------------------------------------
+
+model AiProvider {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  name           String
+  type           String   // openai_compatible | google_gemini | offline
+  baseUrl        String?  @map("base_url")
+  encryptedApiKey String? @map("encrypted_api_key")
+  isDefault      Boolean  @default(false) @map("is_default")
+  isFallback     Boolean  @default(false) @map("is_fallback")
+  enabled        Boolean  @default(false)
+  // Provider-specific operational settings + verified capability flags.
+  config         Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  models       AiModelConfiguration[]
+  usageEvents  AiUsageEvent[]
+
+  @@index([organizationId])
+  @@map("ai_providers")
+}
+
+model AiModelConfiguration {
+  id          Int      @id @default(autoincrement())
+  providerId  Int      @map("provider_id")
+  modelId     String   @map("model_id")
+  label       String?
+  maxTokens   Int?     @map("max_tokens")
+  temperature Decimal? @db.Decimal(3,2)
+  timeoutMs   Int      @default(30000) @map("timeout_ms")
+  streaming   Boolean  @default(true)
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  provider AiProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, modelId])
+  @@map("ai_model_configurations")
+}
+
+model AiUseCasePolicy {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  feature        String   // chat | explain_own_result | report_summary
+  enabled        Boolean  @default(false)
+  // Which data categories this feature may send to the provider.
+  dataCategories Json     @default("[]") @map("data_categories")
+  minRoleKey     String?  @map("min_role_key")
+  notes          String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, feature])
+  @@map("ai_use_case_policies")
+}
+
+model AiUsageEvent {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  userId         Int?     @map("user_id")
+  providerId     Int?     @map("provider_id")
+  modelId        String?  @map("model_id")
+  feature        String
+  tokensIn       Int?     @map("tokens_in")
+  tokensOut      Int?     @map("tokens_out")
+  latencyMs      Int?     @map("latency_ms")
+  status         String   // ok | error | timeout | disabled
+  errorCode      String?  @map("error_code")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  provider     AiProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@map("ai_usage_events")
+}
+
+model AiConversation {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  userId         Int      @map("user_id")
+  title          String   @default("گفت‌وگوی جدید")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages     AiMessage[]
+
+  @@index([organizationId, userId])
+  @@map("ai_conversations")
+}
+
+model AiMessage {
+  id             Int      @id @default(autoincrement())
+  conversationId Int      @map("conversation_id")
+  role           String   // user | assistant | system
+  content        String
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("ai_messages")
+}
+
+// ---------------------------------------------------------------------------
+// Operations: audit, notifications, settings, compliance, jobs
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id             Int      @id @default(autoincrement())
+  organizationId Int?     @map("organization_id")
+  actorUserId    Int?     @map("actor_user_id")
+  action         String
+  entityType     String   @map("entity_type")
+  entityId       String?  @map("entity_id")
+  before         Json?
+  after          Json?
+  metadata       Json?
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  userId         Int      @map("user_id")
+  type           String
+  title          String
+  body           String?
+  data           Json     @default("{}")
+  readAt         DateTime? @map("read_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model Setting {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  key            String
+  value          String
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, key])
+  @@map("settings")
+}
+
+/// Business/legal identity entered by an administrator. Unverified facts stay
+/// as [REQUIRES BUSINESS CONFIRMATION] rather than being invented.
+model ComplianceProfile {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @unique @map("organization_id")
+  legalName      String?  @map("legal_name")
+  registrationNo String?  @map("registration_no")
+  nationalId     String?  @map("national_id")
+  address        String?
+  country        String?
+  contactEmail   String?  @map("contact_email")
+  contactPhone   String?  @map("contact_phone")
+  jurisdictions  Json     @default("[]")
+  targetMarkets  Json     @default("[]")
+  serviceOfferings String? @map("service_offerings")
+  hasPaidOffering Boolean @default(false) @map("has_paid_offering")
+  dataRetention  String?  @map("data_retention")
+  internationalTransfers String? @map("international_transfers")
+  policyVersion  String   @default("1.0") @map("policy_version")
+  reviewedBy     String?  @map("reviewed_by")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("compliance_profiles")
+}
+
+/// Admin-maintained register of third-party services / trackers actually present.
+model ThirdPartyService {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  name           String
+  provider       String?
+  purpose        String
+  category       String   // functional | analytics | marketing | ai | email | payment | cdn | other
+  dataTransmitted String? @map("data_transmitted")
+  requiresConsent Boolean @default(false) @map("requires_consent")
+  isActive       Boolean  @default(true) @map("is_active")
+  privacyUrl     String?  @map("privacy_url")
+  notes          String?
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("third_party_services")
+}
+
+model ConsentPreference {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  userId         Int      @map("user_id")
+  categories     Json     @default("{}") // { necessary:true, analytics:false, ... }
+  policyVersion  String   @default("1.0") @map("policy_version")
+  ipAddress      String?  @map("ip_address")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@map("consent_preferences")
+}
+
+model ImportJob {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  userId         Int?     @map("user_id")
+  type           String   // employees | ...
+  status         String   @default("pending")
+  fileName       String?  @map("file_name")
+  summary        Json     @default("{}")
+  errors         Json     @default("[]")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("import_jobs")
+}
+
+model ExportJob {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  userId         Int?     @map("user_id")
+  report         String
+  format         String   @default("xlsx")
+  filters        Json     @default("{}")
+  status         String   @default("pending")
+  filePath       String?  @map("file_path")
+  rows           Int?
+  size           Int?
+  expiresAt      DateTime? @map("expires_at")
+  error          String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@map("export_jobs")
+}
+
+/// Durable, DB-backed job queue drained by apps/worker (no Redis required).
+model Job {
+  id             Int      @id @default(autoincrement())
+  organizationId Int?     @map("organization_id")
+  queue          String   @default("default")
+  type           String
+  payload        Json     @default("{}")
+  status         String   @default("pending") // pending | running | completed | failed | dead
+  attempts       Int      @default(0)
+  maxAttempts    Int      @default(3) @map("max_attempts")
+  runAt          DateTime @default(now()) @map("run_at")
+  lockedAt       DateTime? @map("locked_at")
+  lockedBy       String?  @map("locked_by")
+  dedupeKey      String?  @map("dedupe_key")
+  lastError      String?  @map("last_error")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@unique([dedupeKey])
+  @@index([status, runAt])
+  @@map("jobs")
+}
+
+// ---------------------------------------------------------------------------
+// Help center and license inventory
+// ---------------------------------------------------------------------------
+
+model HelpArticle {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  slug           String
+  title          String
+  summary        String?
+  body           String
+  roleScope      Json     @default("[]") @map("role_scope") // [] = everyone
+  module         String?
+  sortOrder      Int      @default(0) @map("sort_order")
+  status         String   @default("published")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, slug])
+  @@map("help_articles")
+}
+
+model HelpFaq {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  question       String
+  answer         String
+  category       String?
+  roleScope      Json     @default("[]") @map("role_scope")
+  sortOrder      Int      @default(0) @map("sort_order")
+  status         String   @default("published")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("help_faqs")
+}
+
+model HelpGlossary {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  term           String
+  definition     String
+  category       String?
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("help_glossary")
+}
+
+model UserHelpProgress {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  tourKey     String   @map("tour_key")
+  status      String   @default("pending") // pending | done | dismissed
+  completedAt DateTime? @map("completed_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tourKey])
+  @@map("user_help_progress")
+}
+
+model Asset {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  name           String
+  kind           String   // font | icon | image | library | media
+  source         String?
+  license        String?
+  attribution    String?
+  commercialUse  Boolean  @default(true) @map("commercial_use")
+  usage          String?
+  verified       Boolean  @default(false)
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("assets")
+}
+
+// ---------------------------------------------------------------------------
+// Messaging / support ticketing
+// ---------------------------------------------------------------------------
+
+model SupportTicket {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  userId         Int      @map("user_id") // the requester
+  assignedToId   Int?     @map("assigned_to_id") // staff handling it
+  subject        String
+  category       String   @default("general") // general | evaluation | technical | other
+  priority       String   @default("normal") // low | normal | high
+  status         String   @default("open") // open | in_progress | answered | closed
+  lastMessageAt  DateTime @default(now()) @map("last_message_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User            @relation("TicketCreator", fields: [userId], references: [id], onDelete: Cascade)
+  assignedTo   User?           @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages     TicketMessage[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, userId])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id           Int      @id @default(autoincrement())
+  ticketId     Int      @map("ticket_id")
+  authorUserId Int?     @map("author_user_id")
+  fromStaff    Boolean  @default(false) @map("from_staff") // staff reply vs requester reply
+  body         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User?         @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@map("ticket_messages")
+}
+
+// ---------------------------------------------------------------------------
+// Performance management processes, agreements and cycle schedules
+// ---------------------------------------------------------------------------
+
+/// A reusable, versioned design for how performance is managed: an evaluation
+/// model, target groups, the operational steps and their owners, and the
+/// dimensions with a responsible party for each.
+model PerformanceProcess {
+  id             Int      @id @default(autoincrement())
+  organizationId Int      @map("organization_id")
+  name           String
+  description    String?
+  evaluationModel String  @default("weighted_360") @map("evaluation_model")
+  /// [{ type: 'unit'|'role'|'employee', id?: number, key?: string }]
+  targetGroups   Json     @default("[]") @map("target_groups")
+  status         String   @default("draft") // draft | active | archived
+  version        Int      @default(1)
+  createdBy      Int?     @map("created_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  steps        ProcessStep[]
+  dimensions   ProcessDimension[]
+  cycles       EvaluationCycle[]
+
+  @@unique([organizationId, name, version])
+  @@index([organizationId, status])
+  @@map("performance_processes")
+}
+
+model ProcessStep {
+  id           Int     @id @default(autoincrement())
+  processId    Int     @map("process_id")
+  name         String
+  description  String?
+  order        Int     @default(0)
+  ownerType    String  @default("role") @map("owner_type") // role | user | unit
+  ownerRoleKey String? @map("owner_role_key")
+  ownerUserId  Int?    @map("owner_user_id")
+  ownerUnitId  Int?    @map("owner_unit_id")
+  slaDays      Int?    @map("sla_days")
+
+  process PerformanceProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@index([processId])
+  @@map("process_steps")
+}
+
+model ProcessDimension {
+  id           Int      @id @default(autoincrement())
+  processId    Int      @map("process_id")
+  name         String
+  description  String?
+  weight       Decimal  @default(0) @db.Decimal(7,3)
+  ownerRoleKey String?  @map("owner_role_key")
+  ownerUserId  Int?     @map("owner_user_id")
+  sortOrder    Int      @default(0) @map("sort_order")
+
+  process PerformanceProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@index([processId])
+  @@map("process_dimensions")
+}
+
+/// The concrete schedule of a process step for one cycle.
+model CycleStep {
+  id           Int       @id @default(autoincrement())
+  cycleId      Int       @map("cycle_id")
+  processStepId Int?     @map("process_step_id")
+  name         String
+  order        Int       @default(0)
+  ownerRoleKey String?   @map("owner_role_key")
+  ownerUserId  Int?      @map("owner_user_id")
+  dueDate      DateTime? @map("due_date")
+  status       String    @default("pending") // pending | in_progress | done
+
+  cycle EvaluationCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  @@index([cycleId])
+  @@map("cycle_steps")
+}
+
+/// An individual performance agreement: indicators with targets and actuals, a
+/// progress percentage, and a log of events and feedback during the cycle.
+model PerformanceAgreement {
+  id             Int       @id @default(autoincrement())
+  organizationId Int       @map("organization_id")
+  employeeId     Int       @map("employee_id")
+  cycleId        Int?      @map("cycle_id")
+  title          String
+  description    String?
+  status         String    @default("draft") // draft | active | completed | cancelled
+  startDate      DateTime? @map("start_date")
+  endDate        DateTime? @map("end_date")
+  createdBy      Int?      @map("created_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  indicators   AgreementIndicator[]
+  entries      AgreementEntry[]
+
+  @@index([organizationId, employeeId])
+  @@map("performance_agreements")
+}
+
+model AgreementIndicator {
+  id          Int      @id @default(autoincrement())
+  agreementId Int      @map("agreement_id")
+  name        String
+  description String?
+  unit        String?
+  targetValue Decimal? @db.Decimal(15,2) @map("target_value")
+  actualValue Decimal? @db.Decimal(15,2) @map("actual_value")
+  weight      Decimal  @default(1) @db.Decimal(7,3)
+  progress    Int      @default(0) // 0..100
+  sortOrder   Int      @default(0) @map("sort_order")
+
+  agreement PerformanceAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+
+  @@index([agreementId])
+  @@map("agreement_indicators")
+}
+
+model AgreementEntry {
+  id           Int      @id @default(autoincrement())
+  agreementId  Int      @map("agreement_id")
+  authorUserId Int?     @map("author_user_id")
+  type         String   @default("feedback") // event | feedback | progress
+  body         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  agreement PerformanceAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+
+  @@index([agreementId])
+  @@map("agreement_entries")
+}

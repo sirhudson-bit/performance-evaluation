@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# builds
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# env / secrets (never commit)
+.env
+.env.local
+.env.*.local
+
+# local database cluster + generated runtime files
+.pgdata/
+storage/
+*.log
+npm-debug.log*
+
+# test / coverage
+coverage/
+verification-report.json
+
+# editor / os
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,15 @@
+# Illustrative only — not built or tested in this environment.
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY apps ./apps
+COPY packages ./packages
+COPY database ./database
+
+RUN npm install --include=dev
+RUN npx prisma generate
+
+EXPOSE 4000
+CMD ["npx", "tsx", "apps/api/src/index.ts"]
