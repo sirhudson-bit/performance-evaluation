@@ -164,8 +164,18 @@ publish → score → Excel export & download → AI gating → CSRF → 404 sco
 
 ## Deployment
 
-See `docs/deployment/deployment.md`. Docker Compose is provided as an
-**optional** convenience; the default path needs only Node and PostgreSQL.
+Live at **https://kpi.namirahamrah.ir** (`/var/www/kpi` on the Ubuntu VPS,
+PostgreSQL 16 on loopback, pm2 + nginx + Let's Encrypt).
+
+```bash
+ALLOW_ROOT=1 DB_PASSWORD='…' SEED=1 bash deploy/kpi/bootstrap.sh   # first time
+bash deploy/kpi/redeploy.sh                                        # every release
+```
+
+`deploy/kpi/` holds the pm2 process definition (api / web / worker), the nginx
+vhost and both scripts; `docs/deployment/deployment.md` covers the generic
+case. Docker Compose remains an **optional** convenience — the default path
+needs only Node and PostgreSQL.
 
 ## License notes
 
