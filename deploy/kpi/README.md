@@ -54,3 +54,8 @@ schema change that needs a destructive step must be planned, not improvised.
   which proxies `/api/v1` to the API, keeping the `SameSite=Lax` cookie valid.
 - **Uploads/exports** live under `storage/` (gitignored) — back it up alongside
   the database; a code-only redeploy does not recreate it.
+- **`npm run verify` is a dev harness**, not a production health check: it logs
+  in as `admin@performance.test / AdminDev!2026`, an account only the
+  demo seed creates (`SEED_DEMO_DATA=true`). Against this deployment it fails at
+  the first login and does not indicate a broken install. Verify production
+  with the CSRF → login → `/auth/me` sequence instead.
