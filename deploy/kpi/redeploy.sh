@@ -55,6 +55,12 @@ APP_DIR="$APP_DIR" WEB_PORT="$WEB_PORT" API_PORT="$API_PORT" PM2_APP_NAME="$PM2_
 pm2 save
 
 log "Verifying"
+# pm2 reload returns before the Next server has bound its port; polling avoids a
+# false "web -> 000" on every successful deploy.
+for _ in $(seq 1 30); do
+  curl -sf -o /dev/null "http://127.0.0.1:${WEB_PORT}/" && break
+  sleep 1
+done
 curl -s -o /dev/null -w "web  (127.0.0.1:${WEB_PORT}) -> %{http_code}\n" "http://127.0.0.1:${WEB_PORT}/"
 curl -s -o /dev/null -w "api  (127.0.0.1:${API_PORT}/api/v1/health) -> %{http_code}\n" "http://127.0.0.1:${API_PORT}/api/v1/health" || true
 pm2 status --no-color | sed -n '1,12p'

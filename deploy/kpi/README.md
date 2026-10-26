@@ -72,3 +72,7 @@ schema change that needs a destructive step must be planned, not improvised.
   redeploy script strips the query string for the dump only; do the same if you
   back up by hand (`pg_dump "${DATABASE_URL%%\?*}"`), otherwise it exits with
   `invalid URI query parameter: "schema"` before any code is deployed.
+- **`APP_NAME` in `.env` is the product's display name** («سامانه ارزیابی
+  عملکرد»), not the deployment identity. PM2 names come from `PM2_APP_NAME`
+  (default `kpi`); using `APP_NAME` renames the processes to Persian and leaves
+  the real `kpi-*` apps running the old build.
