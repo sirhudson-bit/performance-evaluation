@@ -25,6 +25,7 @@ import { ticketsRouter } from './modules/tickets/routes.js';
 import { processesRouter } from './modules/processes/routes.js';
 import { agreementsRouter } from './modules/agreements/routes.js';
 import { adminRouter } from './modules/admin/routes.js';
+import { smsRouter } from './modules/sms/routes.js';
 import { jobsRouter } from './modules/jobs/routes.js';
 
 /**
@@ -85,6 +86,7 @@ export function createApp(): Express {
   api.use('/tickets', ticketsRouter);
   api.use('/processes', processesRouter);
   api.use('/agreements', agreementsRouter);
+  api.use('/admin/sms', smsRouter);
   api.use('/admin', adminRouter);
   api.use('/jobs', jobsRouter);
 

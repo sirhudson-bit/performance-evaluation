@@ -11,4 +11,5 @@ export * from './ai.js';
 export * from './tickets.js';
 export * from './performance.js';
 export * from './compliance.js';
+export * from './sms.js';
 export * from './reports.js';

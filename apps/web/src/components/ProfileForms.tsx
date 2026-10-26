@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { apiClient, ApiClientError } from '@/lib/client';
 import { Button, Field, Input, Alert } from '@/components/ui';
+import { PasswordInput } from '@/components/PasswordInput';
+import { password as passwordSchema } from '@pe/validation';
 
 export function ProfileForm({ initialName, initialPhone, email }: { initialName: string; initialPhone: string; email: string }) {
   const [name, setName] = useState(initialName);
@@ -46,10 +48,16 @@ export function PasswordForm() {
   const [newPassword, setNew] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  const check = newPassword.length > 0 ? passwordSchema.safeParse(newPassword) : null;
+  const passwordError = check && !check.success ? check.error.issues[0]?.message : undefined;
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setMessage(null);
+    if (!currentPassword || !check?.success) {
+      setMessage({ type: 'danger', text: passwordError ?? 'رمز عبور فعلی و جدید را کامل وارد کنید.' });
+      return;
+    }
     setLoading(true);
     try {
       await apiClient('POST', '/auth/password', { currentPassword, newPassword });
@@ -67,12 +75,12 @@ export function PasswordForm() {
     <form onSubmit={onSubmit} className="space-y-4">
       {message ? <Alert variant={message.type}>{message.text}</Alert> : null}
       <Field label="رمز عبور فعلی" htmlFor="cur-pass" required>
-        <Input id="cur-pass" type="password" dir="ltr" value={currentPassword} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" />
+        <PasswordInput id="cur-pass" dir="ltr" value={currentPassword} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" />
       </Field>
-      <Field label="رمز عبور جدید" htmlFor="new-pass" hint="حداقل ۸ نویسه، شامل حرف و رقم." required>
-        <Input id="new-pass" type="password" dir="ltr" value={newPassword} onChange={(e) => setNew(e.target.value)} autoComplete="new-password" />
+      <Field label="رمز عبور جدید" htmlFor="new-pass" hint="حداقل ۸ نویسه، شامل حرف و رقم." error={passwordError} required>
+        <PasswordInput id="new-pass" dir="ltr" value={newPassword} onChange={(e) => setNew(e.target.value)} autoComplete="new-password" />
       </Field>
-      <Button type="submit" variant="secondary" disabled={loading}>{loading ? 'در حال تغییر…' : 'تغییر رمز عبور'}</Button>
+      <Button type="submit" variant="secondary" disabled={loading || Boolean(passwordError) || !check?.success}>{loading ? 'در حال تغییر…' : 'تغییر رمز عبور'}</Button>
     </form>
   );
 }

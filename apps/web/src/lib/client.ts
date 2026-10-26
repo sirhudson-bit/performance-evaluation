@@ -8,10 +8,12 @@
 export class ApiClientError extends Error {
   readonly status: number;
   readonly details?: unknown;
-  constructor(status: number, message: string, details?: unknown) {
+  readonly code?: string;
+  constructor(status: number, message: string, details?: unknown, code?: string) {
     super(message);
     this.status = status;
     this.details = details;
+    this.code = code;
     this.name = 'ApiClientError';
   }
 }
@@ -50,9 +52,28 @@ export async function apiClient<T = unknown>(
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
-  const json = (await res.json().catch(() => ({}))) as { data?: T; error?: { message?: string; details?: unknown } };
+  const json = (await res.json().catch(() => ({}))) as {
+    data?: T;
+    error?: { code?: string; message?: string; details?: unknown };
+  };
   if (!res.ok) {
-    throw new ApiClientError(res.status, json?.error?.message ?? 'خطای غیرمنتظره رخ داد.', json?.error?.details);
+    // A 422 from Zod carries the one message the user actually needs ("رمز عبور
+    // باید حداقل ۸ نویسه باشد"), while the top-level text is generic. Prefer the
+    // field message so forms never hide the reason behind «داده‌های ورودی معتبر
+    // نیست».
+    const details = json?.error?.details;
+    const firstFieldMessage =
+      Array.isArray(details) && json?.error?.code === 'validation_error'
+        ? (details.find((d) => d && typeof d === 'object' && typeof (d as { message?: unknown }).message === 'string') as
+            | { message: string }
+            | undefined)?.message
+        : undefined;
+    throw new ApiClientError(
+      res.status,
+      firstFieldMessage ?? json?.error?.message ?? 'خطای غیرمنتظره رخ داد.',
+      details,
+      json?.error?.code,
+    );
   }
   return (json?.data ?? (json as unknown)) as T;
 }

@@ -140,6 +140,28 @@ Manual database start (if you prefer to run PostgreSQL yourself):
 The web app proxies `/api/v1/*` to `http://127.0.0.1:4000` (override with
 `API_URL`). In production, route `/api/v1` to the API at the reverse proxy.
 
+## SMS and OTP login
+
+The SMS integration is configured by a platform administrator at
+`/admin/sms` (also linked from **تنظیمات**). It uses the MeliPayamak REST API
+(`https://rest.payamak-panel.com/api/SendSMS/SendSMS`) with the panel's username,
+password and sender line. Credentials are encrypted at rest with `APP_KEY`; the
+panel password is never returned to the browser. A test send verifies the
+connection before enabling it.
+
+- **Passwordless login:** the login page has a «رمز یک‌بار مصرف» tab. A 6-digit
+  code is sent to the mobile number stored on the account, valid for 2 minutes,
+  single-use, with at most 5 verification attempts and per-IP rate limits.
+- **System messages:** `/admin/sms` can send a message to all active users, only
+  managers (`department_manager`, `hr_manager`, `system_admin`,
+  `platform_super_admin`), only staff, or one selected user. Recipients without a
+  mobile number are skipped; every attempt is logged.
+- **Service patterns:** set the pattern `bodyId` in the SMS settings to send OTP
+  through a MeliPayamak service pattern (the panel owns the wording and receives
+  only the code). Without a pattern, `sms_otp_text` (with `{code}`) is used.
+- **Safety:** OTP bodies are redacted from the delivery log, codes are stored as
+  an HMAC keyed by `APP_KEY`, and the SMS password is write-only.
+
 ## Verify & test
 
 ```bash

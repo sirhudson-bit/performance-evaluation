@@ -41,48 +41,48 @@ model Organization {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  units                  OrganizationUnit[]
-  positions              Position[]
-  employees              Employee[]
-  users                  User[]
-  roles                  Role[]
-  questionCategories     QuestionCategory[]
-  questions              Question[]
-  forms                  EvaluationForm[]
-  scoringPolicies        ScoringPolicyVersion[]
-  workflows              Workflow[]
-  periods                EvaluationPeriod[]
-  cycles                 EvaluationCycle[]
-  assignments            EvaluationAssignment[]
-  responses              EvaluationResponse[]
-  scores                 EvaluationScore[]
-  results                FinalEvaluationResult[]
-  reviews                EvaluationReview[]
-  appeals                AppealRequest[]
-  improvementPlans       ImprovementPlan[]
-  compensationPolicies   CompensationPolicy[]
-  compensationRecs       CompensationRecommendation[]
-  compensationApprovals  CompensationApproval[]
-  aiProviders            AiProvider[]
-  aiUseCasePolicies      AiUseCasePolicy[]
-  aiUsageEvents          AiUsageEvent[]
-  aiConversations        AiConversation[]
-  auditLogs              AuditLog[]
-  notifications          Notification[]
-  settings               Setting[]
-  complianceProfile      ComplianceProfile?
-  thirdPartyServices     ThirdPartyService[]
-  consentPreferences     ConsentPreference[]
-  importJobs             ImportJob[]
-  exportJobs             ExportJob[]
-  jobs                   Job[]
-  helpArticles           HelpArticle[]
-  helpFaqs               HelpFaq[]
-  helpGlossary           HelpGlossary[]
-  assets                 Asset[]
-  tickets                SupportTicket[]
-  processes              PerformanceProcess[]
-  agreements             PerformanceAgreement[]
+  units                 OrganizationUnit[]
+  positions             Position[]
+  employees             Employee[]
+  users                 User[]
+  roles                 Role[]
+  questionCategories    QuestionCategory[]
+  questions             Question[]
+  forms                 EvaluationForm[]
+  scoringPolicies       ScoringPolicyVersion[]
+  workflows             Workflow[]
+  periods               EvaluationPeriod[]
+  cycles                EvaluationCycle[]
+  assignments           EvaluationAssignment[]
+  responses             EvaluationResponse[]
+  scores                EvaluationScore[]
+  results               FinalEvaluationResult[]
+  reviews               EvaluationReview[]
+  appeals               AppealRequest[]
+  improvementPlans      ImprovementPlan[]
+  compensationPolicies  CompensationPolicy[]
+  compensationRecs      CompensationRecommendation[]
+  compensationApprovals CompensationApproval[]
+  aiProviders           AiProvider[]
+  aiUseCasePolicies     AiUseCasePolicy[]
+  aiUsageEvents         AiUsageEvent[]
+  aiConversations       AiConversation[]
+  auditLogs             AuditLog[]
+  notifications         Notification[]
+  settings              Setting[]
+  complianceProfile     ComplianceProfile?
+  thirdPartyServices    ThirdPartyService[]
+  consentPreferences    ConsentPreference[]
+  importJobs            ImportJob[]
+  exportJobs            ExportJob[]
+  jobs                  Job[]
+  helpArticles          HelpArticle[]
+  helpFaqs              HelpFaq[]
+  helpGlossary          HelpGlossary[]
+  assets                Asset[]
+  tickets               SupportTicket[]
+  processes             PerformanceProcess[]
+  agreements            PerformanceAgreement[]
 
   @@map("organizations")
 }
@@ -106,7 +106,7 @@ model OrganizationUnit {
   children     OrganizationUnit[] @relation("UnitTree")
   positions    Position[]
   employees    Employee[]
-  users        User[]            @relation("UnitUsers")
+  users        User[]             @relation("UnitUsers")
 
   @@unique([organizationId, code])
   @@index([organizationId, parentId])
@@ -152,20 +152,20 @@ model Employee {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
-  unit           OrganizationUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
-  position       Position?         @relation(fields: [positionId], references: [id], onDelete: SetNull)
-  manager        Employee?         @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
-  reports        Employee[]        @relation("EmployeeManager")
-  managerHistory EmployeeManagerHistory[] @relation("HistorySubject")
-  managedHistory EmployeeManagerHistory[] @relation("HistoryManager")
+  organization       Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user               User?                        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  unit               OrganizationUnit?            @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  position           Position?                    @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  manager            Employee?                    @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  reports            Employee[]                   @relation("EmployeeManager")
+  managerHistory     EmployeeManagerHistory[]     @relation("HistorySubject")
+  managedHistory     EmployeeManagerHistory[]     @relation("HistoryManager")
   assignmentsSubject EvaluationAssignment[]
-  appealRequests AppealRequest[]
-  results        FinalEvaluationResult[]
-  improvementPlans ImprovementPlan[]
-  compensationRecs CompensationRecommendation[]
-  agreements     PerformanceAgreement[]
+  appealRequests     AppealRequest[]
+  results            FinalEvaluationResult[]
+  improvementPlans   ImprovementPlan[]
+  compensationRecs   CompensationRecommendation[]
+  agreements         PerformanceAgreement[]
 
   @@unique([organizationId, employeeNo])
   @@index([organizationId, unitId])
@@ -197,37 +197,38 @@ model EmployeeManagerHistory {
 // ---------------------------------------------------------------------------
 
 model User {
-  id             Int       @id @default(autoincrement())
-  organizationId Int?      @map("organization_id")
-  name           String
-  email          String
-  phone          String?
-  passwordHash   String    @map("password_hash")
-  status         String    @default("active") // active | suspended | archived
-  isPlatformAdmin Boolean  @default(false) @map("is_platform_admin")
-  mfaEnabled     Boolean   @default(false) @map("mfa_enabled")
-  mfaSecret      String?   @map("mfa_secret")
-  preferredLanguage String @default("fa") @map("preferred_language")
-  themePreference String @default("light") @map("theme_preference") // light | dark | system
-  departmentId   Int?     @map("department_id")
-  toursState     Json?    @map("tours_state")
-  lastLoginAt    DateTime? @map("last_login_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  id                Int       @id @default(autoincrement())
+  organizationId    Int?      @map("organization_id")
+  name              String
+  email             String
+  phone             String?
+  passwordHash      String    @map("password_hash")
+  status            String    @default("active") // active | suspended | archived
+  isPlatformAdmin   Boolean   @default(false) @map("is_platform_admin")
+  mfaEnabled        Boolean   @default(false) @map("mfa_enabled")
+  mfaSecret         String?   @map("mfa_secret")
+  preferredLanguage String    @default("fa") @map("preferred_language")
+  themePreference   String    @default("light") @map("theme_preference") // light | dark | system
+  departmentId      Int?      @map("department_id")
+  toursState        Json?     @map("tours_state")
+  lastLoginAt       DateTime? @map("last_login_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  department   OrganizationUnit? @relation("UnitUsers", fields: [departmentId], references: [id], onDelete: SetNull)
-  employee     Employee?
-  sessions     Session[]
-  roles        UserRole[]
-  resetTokens  PasswordResetToken[]
-  notifications Notification[]
+  organization       Organization?        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  department         OrganizationUnit?    @relation("UnitUsers", fields: [departmentId], references: [id], onDelete: SetNull)
+  employee           Employee?
+  sessions           Session[]
+  roles              UserRole[]
+  resetTokens        PasswordResetToken[]
+  loginOtps          LoginOtp[]
+  notifications      Notification[]
   consentPreferences ConsentPreference[]
-  helpProgress UserHelpProgress[]
-  aiConversations AiConversation[]
-  tickets      SupportTicket[] @relation("TicketCreator")
-  assignedTickets SupportTicket[] @relation("TicketAssignee")
-  ticketMessages TicketMessage[]
+  helpProgress       UserHelpProgress[]
+  aiConversations    AiConversation[]
+  tickets            SupportTicket[]      @relation("TicketCreator")
+  assignedTickets    SupportTicket[]      @relation("TicketAssignee")
+  ticketMessages     TicketMessage[]
 
   @@unique([organizationId, email])
   @@index([email])
@@ -250,17 +251,56 @@ model Session {
 }
 
 model PasswordResetToken {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
-  tokenHash String   @unique @map("token_hash")
-  expiresAt DateTime @map("expires_at")
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
   usedAt    DateTime? @map("used_at")
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+/// One-time code for passwordless (OTP) login. Only a keyed hash is stored;
+/// the plain code exists solely in the SMS and in memory for the length of the
+/// request. Attempts are capped so a 6-digit code cannot be brute-forced.
+model LoginOtp {
+  id         Int       @id @default(autoincrement())
+  userId     Int       @map("user_id")
+  codeHash   String    @map("code_hash")
+  attempts   Int       @default(0)
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("login_otps")
+}
+
+/// Delivery log for every outbound SMS (OTP, system message, test). The body of
+/// an OTP is redacted before it is written here.
+model SmsMessage {
+  id                Int      @id @default(autoincrement())
+  organizationId    Int?     @map("organization_id")
+  senderUserId      Int?     @map("sender_user_id")
+  recipientUserId   Int?     @map("recipient_user_id")
+  recipientName     String?  @map("recipient_name")
+  phone             String
+  text              String
+  kind              String   @default("system") // otp | system | test
+  status            String   @default("sent") // sent | failed
+  provider          String   @default("melipayamak")
+  providerMessageId String?  @map("provider_message_id")
+  error             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@index([organizationId, createdAt])
+  @@map("sms_messages")
 }
 
 model Role {
@@ -273,7 +313,7 @@ model Role {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  organization Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   permissions  RolePermission[]
   users        UserRole[]
 
@@ -332,7 +372,7 @@ model QuestionCategory {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   questions    Question[]
 
   @@index([organizationId])
@@ -340,32 +380,32 @@ model QuestionCategory {
 }
 
 model Question {
-  id             Int      @id @default(autoincrement())
-  organizationId Int      @map("organization_id")
-  stableKey      String   @map("stable_key") // stable identifier across versions
-  categoryId     Int?     @map("category_id")
-  title          String
-  text           String
-  guidance       String?
+  id              Int      @id @default(autoincrement())
+  organizationId  Int      @map("organization_id")
+  stableKey       String   @map("stable_key") // stable identifier across versions
+  categoryId      Int?     @map("category_id")
+  title           String
+  text            String
+  guidance        String?
   // Person/class being evaluated (self | manager | employee | peer | report | other).
-  subjectType    String   @default("employee") @map("subject_type")
+  subjectType     String   @default("employee") @map("subject_type")
   // Authorized respondents (evaluator roles), stored as JSON array.
-  respondentRoles Json    @default("[]") @map("respondent_roles")
-  answerType     String   @map("answer_type")
-  required       Boolean  @default(true)
-  weight         Decimal  @default(1) @db.Decimal(7,3)
+  respondentRoles Json     @default("[]") @map("respondent_roles")
+  answerType      String   @map("answer_type")
+  required        Boolean  @default(true)
+  weight          Decimal  @default(1) @db.Decimal(7, 3)
   // Scoring criteria / bounds / multi-choice rule, e.g.
   // { max, min, unit, scale:[...], multiChoice:{mode,partial} }
-  scoring        Json     @default("{}")
+  scoring         Json     @default("{}")
   // Conditional visibility rule, e.g. { when:{ questionStableKey, equals } }.
-  condition      Json?    @map("condition")
-  currentVersion Int      @default(1) @map("current_version")
-  status         String   @default("draft") // draft | active | inactive | archived
-  sortOrder      Int      @default(0) @map("sort_order")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  condition       Json?    @map("condition")
+  currentVersion  Int      @default(1) @map("current_version")
+  status          String   @default("draft") // draft | active | inactive | archived
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   category     QuestionCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   versions     QuestionVersion[]
   options      QuestionOption[]
@@ -379,14 +419,14 @@ model Question {
 /// Immutable snapshot of a question at a point in time. A published form
 /// references a QuestionVersion row, never the mutable Question.
 model QuestionVersion {
-  id           Int      @id @default(autoincrement())
-  questionId   Int      @map("question_id")
-  version      Int
-  snapshot     Json     // full question + options + scoring at this version
-  createdBy    Int?     @map("created_by")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id         Int      @id @default(autoincrement())
+  questionId Int      @map("question_id")
+  version    Int
+  snapshot   Json // full question + options + scoring at this version
+  createdBy  Int?     @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
 
-  question    Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  question      Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
   formQuestions FormQuestion[]
 
   @@unique([questionId, version])
@@ -394,13 +434,13 @@ model QuestionVersion {
 }
 
 model QuestionOption {
-  id         Int      @id @default(autoincrement())
-  questionId Int      @map("question_id")
-  label      String
-  value      String
-  score      Decimal? @db.Decimal(7,3)
-  isNotApplicable Boolean @default(false) @map("is_not_applicable")
-  sortOrder  Int      @default(0) @map("sort_order")
+  id              Int      @id @default(autoincrement())
+  questionId      Int      @map("question_id")
+  label           String
+  value           String
+  score           Decimal? @db.Decimal(7, 3)
+  isNotApplicable Boolean  @default(false) @map("is_not_applicable")
+  sortOrder       Int      @default(0) @map("sort_order")
 
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
@@ -418,12 +458,12 @@ model ScoringPolicyVersion {
   name           String
   version        Int
   model          String   @default("normalized_weighted_average")
-  config         Json     // round, requireComplete, allowWeightNormalization, weightTarget, unansweredPolicy
+  config         Json // round, requireComplete, allowWeightNormalization, weightTarget, unansweredPolicy
   status         String   @default("draft") // draft | active | archived
   createdBy      Int?     @map("created_by")
   createdAt      DateTime @default(now()) @map("created_at")
 
-  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   formVersions FormVersion[]
   cycles       EvaluationCycle[]
   results      FinalEvaluationResult[]
@@ -437,7 +477,7 @@ model Workflow {
   organizationId Int      @map("organization_id")
   name           String
   version        Int      @default(1)
-  config         Json     // { selfAssessment, requiredEvaluators, stages:[...] }
+  config         Json // { selfAssessment, requiredEvaluators, stages:[...] }
   status         String   @default("active")
   createdAt      DateTime @default(now()) @map("created_at")
 
@@ -467,40 +507,40 @@ model EvaluationForm {
 
 /// A published form version is immutable: questions/options/scoring are frozen.
 model FormVersion {
-  id                  Int      @id @default(autoincrement())
-  formId              Int      @map("form_id")
+  id                  Int       @id @default(autoincrement())
+  formId              Int       @map("form_id")
   version             Int
-  status              String   @default("draft") // draft | in_review | published | archived
-  scoringPolicyId     Int?     @map("scoring_policy_id")
-  confidentialityMode String   @default("named") @map("confidentiality_mode") // named | confidential | anonymous
-  selfAssessment      Boolean  @default(false) @map("self_assessment")
+  status              String    @default("draft") // draft | in_review | published | archived
+  scoringPolicyId     Int?      @map("scoring_policy_id")
+  confidentialityMode String    @default("named") @map("confidentiality_mode") // named | confidential | anonymous
+  selfAssessment      Boolean   @default(false) @map("self_assessment")
   // Peer/subject aggregation threshold for anonymised feedback.
-  anonymityThreshold  Int      @default(3) @map("anonymity_threshold")
+  anonymityThreshold  Int       @default(3) @map("anonymity_threshold")
   notes               String?
   publishedAt         DateTime? @map("published_at")
-  createdBy           Int?     @map("created_by")
-  createdAt           DateTime @default(now()) @map("created_at")
+  createdBy           Int?      @map("created_by")
+  createdAt           DateTime  @default(now()) @map("created_at")
 
-  form           EvaluationForm  @relation(fields: [formId], references: [id], onDelete: Cascade)
-  scoringPolicy  ScoringPolicyVersion? @relation(fields: [scoringPolicyId], references: [id], onDelete: SetNull)
-  sections       FormSection[]
-  questions      FormQuestion[]
-  assignments    EvaluationAssignment[]
-  cycles         EvaluationCycle[]
+  form          EvaluationForm         @relation(fields: [formId], references: [id], onDelete: Cascade)
+  scoringPolicy ScoringPolicyVersion?  @relation(fields: [scoringPolicyId], references: [id], onDelete: SetNull)
+  sections      FormSection[]
+  questions     FormQuestion[]
+  assignments   EvaluationAssignment[]
+  cycles        EvaluationCycle[]
 
   @@unique([formId, version])
   @@map("form_versions")
 }
 
 model FormSection {
-  id            Int      @id @default(autoincrement())
-  formVersionId Int      @map("form_version_id")
+  id            Int     @id @default(autoincrement())
+  formVersionId Int     @map("form_version_id")
   title         String
   description   String?
-  weight        Decimal  @default(0) @db.Decimal(7,3)
-  sortOrder     Int      @default(0) @map("sort_order")
+  weight        Decimal @default(0) @db.Decimal(7, 3)
+  sortOrder     Int     @default(0) @map("sort_order")
 
-  formVersion FormVersion   @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
+  formVersion FormVersion    @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
   questions   FormQuestion[]
 
   @@index([formVersionId])
@@ -508,18 +548,18 @@ model FormSection {
 }
 
 model FormQuestion {
-  id                Int      @id @default(autoincrement())
-  formVersionId     Int      @map("form_version_id")
-  sectionId         Int      @map("section_id")
-  questionVersionId Int      @map("question_version_id")
-  weight            Decimal  @default(1) @db.Decimal(7,3)
-  required          Boolean  @default(true)
-  sortOrder         Int      @default(0) @map("sort_order")
-  condition         Json?    // frozen conditional-visibility rule
+  id                Int     @id @default(autoincrement())
+  formVersionId     Int     @map("form_version_id")
+  sectionId         Int     @map("section_id")
+  questionVersionId Int     @map("question_version_id")
+  weight            Decimal @default(1) @db.Decimal(7, 3)
+  required          Boolean @default(true)
+  sortOrder         Int     @default(0) @map("sort_order")
+  condition         Json? // frozen conditional-visibility rule
   /// Calculated (quantitative) indicator: when true the answer is derived from
   /// other answers via `formula` instead of being entered directly.
-  computed          Boolean  @default(false)
-  formula           Json?    // { expression: "quality * 0.5 + teamwork * 0.5" }
+  computed          Boolean @default(false)
+  formula           Json? // { expression: "quality * 0.5 + teamwork * 0.5" }
 
   formVersion     FormVersion     @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
   section         FormSection     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
@@ -574,44 +614,44 @@ model EvaluationCycle {
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  period         EvaluationPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
-  formVersion    FormVersion     @relation(fields: [formVersionId], references: [id], onDelete: Restrict)
-  workflow       Workflow?       @relation(fields: [workflowId], references: [id], onDelete: SetNull)
-  scoringPolicy  ScoringPolicyVersion? @relation(fields: [scoringPolicyId], references: [id], onDelete: SetNull)
-  compensationPolicy CompensationPolicy? @relation(fields: [compensationPolicyId], references: [id], onDelete: SetNull)
-  process        PerformanceProcess? @relation(fields: [processId], references: [id], onDelete: SetNull)
-  assignments    EvaluationAssignment[]
-  results        FinalEvaluationResult[]
-  appeals        AppealRequest[]
-  steps          CycleStep[]
+  organization       Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  period             EvaluationPeriod?       @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  formVersion        FormVersion             @relation(fields: [formVersionId], references: [id], onDelete: Restrict)
+  workflow           Workflow?               @relation(fields: [workflowId], references: [id], onDelete: SetNull)
+  scoringPolicy      ScoringPolicyVersion?   @relation(fields: [scoringPolicyId], references: [id], onDelete: SetNull)
+  compensationPolicy CompensationPolicy?     @relation(fields: [compensationPolicyId], references: [id], onDelete: SetNull)
+  process            PerformanceProcess?     @relation(fields: [processId], references: [id], onDelete: SetNull)
+  assignments        EvaluationAssignment[]
+  results            FinalEvaluationResult[]
+  appeals            AppealRequest[]
+  steps              CycleStep[]
 
   @@index([organizationId, status])
   @@map("evaluation_cycles")
 }
 
 model EvaluationAssignment {
-  id             Int       @id @default(autoincrement())
-  organizationId Int       @map("organization_id")
-  cycleId        Int       @map("cycle_id")
-  employeeId     Int       @map("employee_id")
-  evaluatorRole  String    @map("evaluator_role") // self | manager | peer | report | hr | other
-  evaluatorUserId Int?     @map("evaluator_user_id")
-  evaluatorEmployeeId Int? @map("evaluator_employee_id")
-  weight         Decimal   @default(0) @db.Decimal(7,3)
-  status         String    @default("draft")
-  dueDate        DateTime? @map("due_date")
-  submittedAt    DateTime? @map("submitted_at")
-  formVersionId  Int       @map("form_version_id")
+  id                  Int       @id @default(autoincrement())
+  organizationId      Int       @map("organization_id")
+  cycleId             Int       @map("cycle_id")
+  employeeId          Int       @map("employee_id")
+  evaluatorRole       String    @map("evaluator_role") // self | manager | peer | report | hr | other
+  evaluatorUserId     Int?      @map("evaluator_user_id")
+  evaluatorEmployeeId Int?      @map("evaluator_employee_id")
+  weight              Decimal   @default(0) @db.Decimal(7, 3)
+  status              String    @default("draft")
+  dueDate             DateTime? @map("due_date")
+  submittedAt         DateTime? @map("submitted_at")
+  formVersionId       Int       @map("form_version_id")
   // Snapshot of questions/weights at assignment time (belt-and-braces immutability).
-  versionSnapshot Json?    @map("version_snapshot")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  versionSnapshot     Json?     @map("version_snapshot")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  cycle        EvaluationCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  formVersion  FormVersion   @relation(fields: [formVersionId], references: [id], onDelete: Restrict)
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cycle        EvaluationCycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employee     Employee             @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  formVersion  FormVersion          @relation(fields: [formVersionId], references: [id], onDelete: Restrict)
   responses    EvaluationResponse[]
   scores       EvaluationScore[]
   reviews      EvaluationReview[]
@@ -630,11 +670,11 @@ model EvaluationResponse {
   questionVersionId Int      @map("question_version_id")
   answerType        String   @map("answer_type")
   value             Json     @default("{}") // raw answer (option values, text, number…)
-  score             Decimal? @db.Decimal(7,4) // normalized 0–100, null when text/NA
+  score             Decimal? @db.Decimal(7, 4) // normalized 0–100, null when text/NA
   isNotApplicable   Boolean  @default(false) @map("is_not_applicable")
   answeredAt        DateTime @default(now()) @map("answered_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   assignment   EvaluationAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
 
   @@unique([assignmentId, formQuestionId])
@@ -647,12 +687,12 @@ model EvaluationScore {
   organizationId Int      @map("organization_id")
   assignmentId   Int      @map("assignment_id")
   sectionId      Int?     @map("section_id")
-  sectionScore   Decimal? @db.Decimal(7,4) @map("section_score")
-  formScore      Decimal? @db.Decimal(7,4) @map("form_score")
+  sectionScore   Decimal? @map("section_score") @db.Decimal(7, 4)
+  formScore      Decimal? @map("form_score") @db.Decimal(7, 4)
   detail         Json     @default("{}")
   computedAt     DateTime @default(now()) @map("computed_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   assignment   EvaluationAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
 
   @@index([assignmentId])
@@ -660,22 +700,22 @@ model EvaluationScore {
 }
 
 model FinalEvaluationResult {
-  id                   Int      @id @default(autoincrement())
-  organizationId       Int      @map("organization_id")
-  cycleId              Int      @map("cycle_id")
-  employeeId           Int      @map("employee_id")
-  finalScore           Decimal? @db.Decimal(7,4) @map("final_score")
-  scoringPolicyVersionId Int?   @map("scoring_policy_version_id")
-  breakdown            Json     @default("{}") // per-evaluator + per-section detail
-  status               String   @default("draft") // draft | published | reopened | appealed
-  publishedAt          DateTime? @map("published_at")
-  publishedBy          Int?     @map("published_by")
-  createdAt            DateTime @default(now()) @map("created_at")
-  updatedAt            DateTime @updatedAt @map("updated_at")
+  id                     Int       @id @default(autoincrement())
+  organizationId         Int       @map("organization_id")
+  cycleId                Int       @map("cycle_id")
+  employeeId             Int       @map("employee_id")
+  finalScore             Decimal?  @map("final_score") @db.Decimal(7, 4)
+  scoringPolicyVersionId Int?      @map("scoring_policy_version_id")
+  breakdown              Json      @default("{}") // per-evaluator + per-section detail
+  status                 String    @default("draft") // draft | published | reopened | appealed
+  publishedAt            DateTime? @map("published_at")
+  publishedBy            Int?      @map("published_by")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  cycle        EvaluationCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  organization  Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cycle         EvaluationCycle       @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employee      Employee              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   scoringPolicy ScoringPolicyVersion? @relation(fields: [scoringPolicyVersionId], references: [id], onDelete: SetNull)
 
   @@unique([cycleId, employeeId])
@@ -688,13 +728,13 @@ model EvaluationReview {
   organizationId Int      @map("organization_id")
   assignmentId   Int      @map("assignment_id")
   reviewerId     Int?     @map("reviewer_id")
-  action         String   // review | approve | return
+  action         String // review | approve | return
   comment        String?
   fromStatus     String   @map("from_status")
   toStatus       String   @map("to_status")
   createdAt      DateTime @default(now()) @map("created_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   assignment   EvaluationAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
 
   @@index([assignmentId])
@@ -702,39 +742,39 @@ model EvaluationReview {
 }
 
 model AppealRequest {
-  id             Int      @id @default(autoincrement())
-  organizationId Int      @map("organization_id")
-  cycleId        Int      @map("cycle_id")
-  employeeId     Int      @map("employee_id")
+  id             Int       @id @default(autoincrement())
+  organizationId Int       @map("organization_id")
+  cycleId        Int       @map("cycle_id")
+  employeeId     Int       @map("employee_id")
   reason         String
-  status         String   @default("open") // open | under_review | accepted | rejected | withdrawn
-  reviewerId     Int?     @map("reviewer_id")
+  status         String    @default("open") // open | under_review | accepted | rejected | withdrawn
+  reviewerId     Int?      @map("reviewer_id")
   decision       String?
   decidedAt      DateTime? @map("decided_at")
-  scoreBefore    Decimal? @db.Decimal(7,4) @map("score_before")
-  scoreAfter     Decimal? @db.Decimal(7,4) @map("score_after")
-  createdAt      DateTime @default(now()) @map("created_at")
+  scoreBefore    Decimal?  @map("score_before") @db.Decimal(7, 4)
+  scoreAfter     Decimal?  @map("score_after") @db.Decimal(7, 4)
+  createdAt      DateTime  @default(now()) @map("created_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   cycle        EvaluationCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee     Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, status])
   @@map("appeal_requests")
 }
 
 model ImprovementPlan {
-  id             Int      @id @default(autoincrement())
-  organizationId Int      @map("organization_id")
-  employeeId     Int      @map("employee_id")
-  cycleId        Int?     @map("cycle_id")
+  id             Int       @id @default(autoincrement())
+  organizationId Int       @map("organization_id")
+  employeeId     Int       @map("employee_id")
+  cycleId        Int?      @map("cycle_id")
   title          String
-  actions        Json     @default("[]")
-  status         String   @default("draft")
-  ownerUserId    Int?     @map("owner_user_id")
+  actions        Json      @default("[]")
+  status         String    @default("draft")
+  ownerUserId    Int?      @map("owner_user_id")
   dueDate        DateTime? @map("due_date")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -748,21 +788,21 @@ model ImprovementPlan {
 // ---------------------------------------------------------------------------
 
 model CompensationPolicy {
-  id             Int      @id @default(autoincrement())
-  organizationId Int      @map("organization_id")
+  id             Int       @id @default(autoincrement())
+  organizationId Int       @map("organization_id")
   name           String
-  version        Int      @default(1)
-  mode           String   @default("recommendation") // recommendation | policy
-  effectiveFrom  DateTime @map("effective_from")
+  version        Int       @default(1)
+  mode           String    @default("recommendation") // recommendation | policy
+  effectiveFrom  DateTime  @map("effective_from")
   effectiveTo    DateTime? @map("effective_to")
   // { rules:[{minScore,maxScore,type,value,min,max}], budget, eligibility, approvalRoleKeys, exceptions }
-  config         Json     @default("{}")
-  status         String   @default("draft") // draft | active | archived
-  createdBy      Int?     @map("created_by")
-  createdAt      DateTime @default(now()) @map("created_at")
+  config         Json      @default("{}")
+  status         String    @default("draft") // draft | active | archived
+  createdBy      Int?      @map("created_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  cycles       EvaluationCycle[]
+  organization    Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cycles          EvaluationCycle[]
   recommendations CompensationRecommendation[]
 
   @@unique([organizationId, name, version])
@@ -770,24 +810,24 @@ model CompensationPolicy {
 }
 
 model CompensationRecommendation {
-  id                    Int      @id @default(autoincrement())
-  organizationId        Int      @map("organization_id")
-  cycleId               Int?     @map("cycle_id")
-  employeeId            Int      @map("employee_id")
-  compensationPolicyId  Int?     @map("compensation_policy_id")
-  mode                  String   @default("recommendation")
-  inputScore            Decimal? @db.Decimal(7,4) @map("input_score")
-  proposedType          String?  @map("proposed_type") // percent | amount | promotion
-  proposedValue         Decimal? @db.Decimal(15,2) @map("proposed_value")
-  status                String   @default("proposed")
-  rationale             String?
-  createdBy             Int?     @map("created_by")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+  id                   Int      @id @default(autoincrement())
+  organizationId       Int      @map("organization_id")
+  cycleId              Int?     @map("cycle_id")
+  employeeId           Int      @map("employee_id")
+  compensationPolicyId Int?     @map("compensation_policy_id")
+  mode                 String   @default("recommendation")
+  inputScore           Decimal? @map("input_score") @db.Decimal(7, 4)
+  proposedType         String?  @map("proposed_type") // percent | amount | promotion
+  proposedValue        Decimal? @map("proposed_value") @db.Decimal(15, 2)
+  status               String   @default("proposed")
+  rationale            String?
+  createdBy            Int?     @map("created_by")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  policy       CompensationPolicy? @relation(fields: [compensationPolicyId], references: [id], onDelete: SetNull)
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee               @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  policy       CompensationPolicy?    @relation(fields: [compensationPolicyId], references: [id], onDelete: SetNull)
   approvals    CompensationApproval[]
 
   @@index([organizationId, status])
@@ -795,17 +835,17 @@ model CompensationRecommendation {
 }
 
 model CompensationApproval {
-  id                Int      @id @default(autoincrement())
-  organizationId    Int      @map("organization_id")
-  recommendationId  Int      @map("recommendation_id")
-  approverId        Int?     @map("approver_id")
-  decision          String   // approved | rejected
-  reason            String?
-  isOverride        Boolean  @default(false) @map("is_override")
-  overrideReason    String?  @map("override_reason")
-  decidedAt         DateTime @default(now()) @map("decided_at")
+  id               Int      @id @default(autoincrement())
+  organizationId   Int      @map("organization_id")
+  recommendationId Int      @map("recommendation_id")
+  approverId       Int?     @map("approver_id")
+  decision         String // approved | rejected
+  reason           String?
+  isOverride       Boolean  @default(false) @map("is_override")
+  overrideReason   String?  @map("override_reason")
+  decidedAt        DateTime @default(now()) @map("decided_at")
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   recommendation CompensationRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
 
   @@index([recommendationId])
@@ -817,21 +857,21 @@ model CompensationApproval {
 // ---------------------------------------------------------------------------
 
 model AiProvider {
-  id             Int      @id @default(autoincrement())
-  organizationId Int      @map("organization_id")
-  name           String
-  type           String   // openai_compatible | google_gemini | offline
-  baseUrl        String?  @map("base_url")
-  encryptedApiKey String? @map("encrypted_api_key")
-  isDefault      Boolean  @default(false) @map("is_default")
-  isFallback     Boolean  @default(false) @map("is_fallback")
-  enabled        Boolean  @default(false)
+  id              Int      @id @default(autoincrement())
+  organizationId  Int      @map("organization_id")
+  name            String
+  type            String // openai_compatible | google_gemini | offline
+  baseUrl         String?  @map("base_url")
+  encryptedApiKey String?  @map("encrypted_api_key")
+  isDefault       Boolean  @default(false) @map("is_default")
+  isFallback      Boolean  @default(false) @map("is_fallback")
+  enabled         Boolean  @default(false)
   // Provider-specific operational settings + verified capability flags.
-  config         Json     @default("{}")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  config          Json     @default("{}")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   models       AiModelConfiguration[]
   usageEvents  AiUsageEvent[]
 
@@ -845,7 +885,7 @@ model AiModelConfiguration {
   modelId     String   @map("model_id")
   label       String?
   maxTokens   Int?     @map("max_tokens")
-  temperature Decimal? @db.Decimal(3,2)
+  temperature Decimal? @db.Decimal(3, 2)
   timeoutMs   Int      @default(30000) @map("timeout_ms")
   streaming   Boolean  @default(true)
   enabled     Boolean  @default(true)
@@ -860,7 +900,7 @@ model AiModelConfiguration {
 model AiUseCasePolicy {
   id             Int      @id @default(autoincrement())
   organizationId Int      @map("organization_id")
-  feature        String   // chat | explain_own_result | report_summary
+  feature        String // chat | explain_own_result | report_summary
   enabled        Boolean  @default(false)
   // Which data categories this feature may send to the provider.
   dataCategories Json     @default("[]") @map("data_categories")
@@ -885,12 +925,12 @@ model AiUsageEvent {
   tokensIn       Int?     @map("tokens_in")
   tokensOut      Int?     @map("tokens_out")
   latencyMs      Int?     @map("latency_ms")
-  status         String   // ok | error | timeout | disabled
+  status         String // ok | error | timeout | disabled
   errorCode      String?  @map("error_code")
   createdAt      DateTime @default(now()) @map("created_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  provider     AiProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  provider     AiProvider?  @relation(fields: [providerId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, createdAt])
   @@map("ai_usage_events")
@@ -915,7 +955,7 @@ model AiConversation {
 model AiMessage {
   id             Int      @id @default(autoincrement())
   conversationId Int      @map("conversation_id")
-  role           String   // user | assistant | system
+  role           String // user | assistant | system
   content        String
   createdAt      DateTime @default(now()) @map("created_at")
 
@@ -951,15 +991,15 @@ model AuditLog {
 }
 
 model Notification {
-  id             Int      @id @default(autoincrement())
-  organizationId Int      @map("organization_id")
-  userId         Int      @map("user_id")
+  id             Int       @id @default(autoincrement())
+  organizationId Int       @map("organization_id")
+  userId         Int       @map("user_id")
   type           String
   title          String
   body           String?
-  data           Json     @default("{}")
+  data           Json      @default("{}")
   readAt         DateTime? @map("read_at")
-  createdAt      DateTime @default(now()) @map("created_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -984,24 +1024,24 @@ model Setting {
 /// Business/legal identity entered by an administrator. Unverified facts stay
 /// as [REQUIRES BUSINESS CONFIRMATION] rather than being invented.
 model ComplianceProfile {
-  id             Int      @id @default(autoincrement())
-  organizationId Int      @unique @map("organization_id")
-  legalName      String?  @map("legal_name")
-  registrationNo String?  @map("registration_no")
-  nationalId     String?  @map("national_id")
-  address        String?
-  country        String?
-  contactEmail   String?  @map("contact_email")
-  contactPhone   String?  @map("contact_phone")
-  jurisdictions  Json     @default("[]")
-  targetMarkets  Json     @default("[]")
-  serviceOfferings String? @map("service_offerings")
-  hasPaidOffering Boolean @default(false) @map("has_paid_offering")
-  dataRetention  String?  @map("data_retention")
-  internationalTransfers String? @map("international_transfers")
-  policyVersion  String   @default("1.0") @map("policy_version")
-  reviewedBy     String?  @map("reviewed_by")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id                     Int      @id @default(autoincrement())
+  organizationId         Int      @unique @map("organization_id")
+  legalName              String?  @map("legal_name")
+  registrationNo         String?  @map("registration_no")
+  nationalId             String?  @map("national_id")
+  address                String?
+  country                String?
+  contactEmail           String?  @map("contact_email")
+  contactPhone           String?  @map("contact_phone")
+  jurisdictions          Json     @default("[]")
+  targetMarkets          Json     @default("[]")
+  serviceOfferings       String?  @map("service_offerings")
+  hasPaidOffering        Boolean  @default(false) @map("has_paid_offering")
+  dataRetention          String?  @map("data_retention")
+  internationalTransfers String?  @map("international_transfers")
+  policyVersion          String   @default("1.0") @map("policy_version")
+  reviewedBy             String?  @map("reviewed_by")
+  updatedAt              DateTime @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -1010,18 +1050,18 @@ model ComplianceProfile {
 
 /// Admin-maintained register of third-party services / trackers actually present.
 model ThirdPartyService {
-  id             Int      @id @default(autoincrement())
-  organizationId Int      @map("organization_id")
-  name           String
-  provider       String?
-  purpose        String
-  category       String   // functional | analytics | marketing | ai | email | payment | cdn | other
-  dataTransmitted String? @map("data_transmitted")
-  requiresConsent Boolean @default(false) @map("requires_consent")
-  isActive       Boolean  @default(true) @map("is_active")
-  privacyUrl     String?  @map("privacy_url")
-  notes          String?
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id              Int      @id @default(autoincrement())
+  organizationId  Int      @map("organization_id")
+  name            String
+  provider        String?
+  purpose         String
+  category        String // functional | analytics | marketing | ai | email | payment | cdn | other
+  dataTransmitted String?  @map("data_transmitted")
+  requiresConsent Boolean  @default(false) @map("requires_consent")
+  isActive        Boolean  @default(true) @map("is_active")
+  privacyUrl      String?  @map("privacy_url")
+  notes           String?
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -1049,7 +1089,7 @@ model ImportJob {
   id             Int      @id @default(autoincrement())
   organizationId Int      @map("organization_id")
   userId         Int?     @map("user_id")
-  type           String   // employees | ...
+  type           String // employees | ...
   status         String   @default("pending")
   fileName       String?  @map("file_name")
   summary        Json     @default("{}")
@@ -1064,20 +1104,20 @@ model ImportJob {
 }
 
 model ExportJob {
-  id             Int      @id @default(autoincrement())
-  organizationId Int      @map("organization_id")
-  userId         Int?     @map("user_id")
+  id             Int       @id @default(autoincrement())
+  organizationId Int       @map("organization_id")
+  userId         Int?      @map("user_id")
   report         String
-  format         String   @default("xlsx")
-  filters        Json     @default("{}")
-  status         String   @default("pending")
-  filePath       String?  @map("file_path")
+  format         String    @default("xlsx")
+  filters        Json      @default("{}")
+  status         String    @default("pending")
+  filePath       String?   @map("file_path")
   rows           Int?
   size           Int?
   expiresAt      DateTime? @map("expires_at")
   error          String?
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -1087,21 +1127,21 @@ model ExportJob {
 
 /// Durable, DB-backed job queue drained by apps/worker (no Redis required).
 model Job {
-  id             Int      @id @default(autoincrement())
-  organizationId Int?     @map("organization_id")
-  queue          String   @default("default")
+  id             Int       @id @default(autoincrement())
+  organizationId Int?      @map("organization_id")
+  queue          String    @default("default")
   type           String
-  payload        Json     @default("{}")
-  status         String   @default("pending") // pending | running | completed | failed | dead
-  attempts       Int      @default(0)
-  maxAttempts    Int      @default(3) @map("max_attempts")
-  runAt          DateTime @default(now()) @map("run_at")
+  payload        Json      @default("{}")
+  status         String    @default("pending") // pending | running | completed | failed | dead
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(3) @map("max_attempts")
+  runAt          DateTime  @default(now()) @map("run_at")
   lockedAt       DateTime? @map("locked_at")
-  lockedBy       String?  @map("locked_by")
-  dedupeKey      String?  @map("dedupe_key")
-  lastError      String?  @map("last_error")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  lockedBy       String?   @map("locked_by")
+  dedupeKey      String?   @map("dedupe_key")
+  lastError      String?   @map("last_error")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
@@ -1165,12 +1205,12 @@ model HelpGlossary {
 }
 
 model UserHelpProgress {
-  id          Int      @id @default(autoincrement())
-  userId      Int      @map("user_id")
-  tourKey     String   @map("tour_key")
-  status      String   @default("pending") // pending | done | dismissed
+  id          Int       @id @default(autoincrement())
+  userId      Int       @map("user_id")
+  tourKey     String    @map("tour_key")
+  status      String    @default("pending") // pending | done | dismissed
   completedAt DateTime? @map("completed_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1182,7 +1222,7 @@ model Asset {
   id             Int      @id @default(autoincrement())
   organizationId Int      @map("organization_id")
   name           String
-  kind           String   // font | icon | image | library | media
+  kind           String // font | icon | image | library | media
   source         String?
   license        String?
   attribution    String?
@@ -1247,20 +1287,20 @@ model TicketMessage {
 /// model, target groups, the operational steps and their owners, and the
 /// dimensions with a responsible party for each.
 model PerformanceProcess {
-  id             Int      @id @default(autoincrement())
-  organizationId Int      @map("organization_id")
-  name           String
-  description    String?
-  evaluationModel String  @default("weighted_360") @map("evaluation_model")
+  id              Int      @id @default(autoincrement())
+  organizationId  Int      @map("organization_id")
+  name            String
+  description     String?
+  evaluationModel String   @default("weighted_360") @map("evaluation_model")
   /// [{ type: 'unit'|'role'|'employee', id?: number, key?: string }]
-  targetGroups   Json     @default("[]") @map("target_groups")
-  status         String   @default("draft") // draft | active | archived
-  version        Int      @default(1)
-  createdBy      Int?     @map("created_by")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  targetGroups    Json     @default("[]") @map("target_groups")
+  status          String   @default("draft") // draft | active | archived
+  version         Int      @default(1)
+  createdBy       Int?     @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   steps        ProcessStep[]
   dimensions   ProcessDimension[]
   cycles       EvaluationCycle[]
@@ -1289,14 +1329,14 @@ model ProcessStep {
 }
 
 model ProcessDimension {
-  id           Int      @id @default(autoincrement())
-  processId    Int      @map("process_id")
+  id           Int     @id @default(autoincrement())
+  processId    Int     @map("process_id")
   name         String
   description  String?
-  weight       Decimal  @default(0) @db.Decimal(7,3)
-  ownerRoleKey String?  @map("owner_role_key")
-  ownerUserId  Int?     @map("owner_user_id")
-  sortOrder    Int      @default(0) @map("sort_order")
+  weight       Decimal @default(0) @db.Decimal(7, 3)
+  ownerRoleKey String? @map("owner_role_key")
+  ownerUserId  Int?    @map("owner_user_id")
+  sortOrder    Int     @default(0) @map("sort_order")
 
   process PerformanceProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
 
@@ -1306,15 +1346,15 @@ model ProcessDimension {
 
 /// The concrete schedule of a process step for one cycle.
 model CycleStep {
-  id           Int       @id @default(autoincrement())
-  cycleId      Int       @map("cycle_id")
-  processStepId Int?     @map("process_step_id")
-  name         String
-  order        Int       @default(0)
-  ownerRoleKey String?   @map("owner_role_key")
-  ownerUserId  Int?      @map("owner_user_id")
-  dueDate      DateTime? @map("due_date")
-  status       String    @default("pending") // pending | in_progress | done
+  id            Int       @id @default(autoincrement())
+  cycleId       Int       @map("cycle_id")
+  processStepId Int?      @map("process_step_id")
+  name          String
+  order         Int       @default(0)
+  ownerRoleKey  String?   @map("owner_role_key")
+  ownerUserId   Int?      @map("owner_user_id")
+  dueDate       DateTime? @map("due_date")
+  status        String    @default("pending") // pending | in_progress | done
 
   cycle EvaluationCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
 
@@ -1338,8 +1378,8 @@ model PerformanceAgreement {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  employee     Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee             @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   indicators   AgreementIndicator[]
   entries      AgreementEntry[]
 
@@ -1353,9 +1393,9 @@ model AgreementIndicator {
   name        String
   description String?
   unit        String?
-  targetValue Decimal? @db.Decimal(15,2) @map("target_value")
-  actualValue Decimal? @db.Decimal(15,2) @map("actual_value")
-  weight      Decimal  @default(1) @db.Decimal(7,3)
+  targetValue Decimal? @map("target_value") @db.Decimal(15, 2)
+  actualValue Decimal? @map("actual_value") @db.Decimal(15, 2)
+  weight      Decimal  @default(1) @db.Decimal(7, 3)
   progress    Int      @default(0) // 0..100
   sortOrder   Int      @default(0) @map("sort_order")
 

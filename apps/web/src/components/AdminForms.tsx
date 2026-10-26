@@ -4,6 +4,8 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient, ApiClientError } from '@/lib/client';
 import { Button, Field, Input, Textarea, Select, Alert } from '@/components/ui';
+import { PasswordInput } from '@/components/PasswordInput';
+import { password as passwordSchema } from '@pe/validation';
 import { JalaliDateInput } from '@/components/JalaliDateInput';
 
 function useSubmit() {
@@ -36,13 +38,15 @@ export function UserForm({ roles, departments, isSuperAdmin }: { roles: { id: nu
   const [confirm, setConfirm] = useState('');
   const [generated, setGenerated] = useState('');
   const mismatch = isSuperAdmin && password.length > 0 && password !== confirm;
+  const passwordCheck = password.length > 0 ? passwordSchema.safeParse(password) : null;
+  const passwordError = passwordCheck && !passwordCheck.success ? passwordCheck.error.issues[0]?.message : undefined;
 
   return (
     <form
       className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
-        if (mismatch) return;
+        if (mismatch || passwordError) return;
         void run(async () => {
           const res = await apiClient<{ generatedPassword?: string }>('POST', '/users', {
             name,
@@ -73,11 +77,11 @@ export function UserForm({ roles, departments, isSuperAdmin }: { roles: { id: nu
       <Field label="ایمیل" htmlFor="u-email" required><Input id="u-email" type="email" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} required /></Field>
       {isSuperAdmin ? (
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="رمز عبور" htmlFor="u-pass" hint="حداقل ۸ نویسه، شامل حرف و رقم.">
-            <Input id="u-pass" type="password" dir="ltr" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Field label="رمز عبور" htmlFor="u-pass" hint="حداقل ۸ نویسه، شامل حرف و رقم." error={passwordError}>
+            <PasswordInput id="u-pass" dir="ltr" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
           </Field>
           <Field label="تکرار رمز عبور" htmlFor="u-pass2" error={mismatch ? 'رمزها یکسان نیستند.' : undefined}>
-            <Input id="u-pass2" type="password" dir="ltr" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            <PasswordInput id="u-pass2" dir="ltr" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
           </Field>
         </div>
       ) : null}
@@ -97,7 +101,7 @@ export function UserForm({ roles, departments, isSuperAdmin }: { roles: { id: nu
           ))}
         </div>
       </Field>
-      <Button type="submit" disabled={busy || mismatch}>{busy ? '…' : 'ایجاد کاربر'}</Button>
+      <Button type="submit" disabled={busy || mismatch || Boolean(passwordError)}>{busy ? '…' : 'ایجاد کاربر'}</Button>
       <p className="text-xs text-slate-500 dark:text-slate-400">
         {isSuperAdmin
           ? 'رمز را خودتان تعیین کنید، یا خالی بگذارید تا یک رمز موقت تولید و یک‌بار نمایش داده شود.'
@@ -201,6 +205,9 @@ export function UserRowActions({
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const mismatch = password.length > 0 && password !== confirm;
+  const passwordCheck = password.length > 0 ? passwordSchema.safeParse(password) : null;
+  const passwordError = passwordCheck && !passwordCheck.success ? passwordCheck.error.issues[0]?.message : undefined;
+  const canSavePassword = password.length > 0 && passwordCheck?.success === true && !mismatch;
 
   async function act(fn: () => Promise<unknown>, ok: string): Promise<boolean> {
     setBusy(true);
@@ -271,7 +278,7 @@ export function UserRowActions({
           className="space-y-2 rounded border border-slate-200 p-3 dark:border-slate-700"
           onSubmit={(e) => {
             e.preventDefault();
-            if (mismatch) return;
+            if (!canSavePassword) return;
             void (async () => {
               const ok = await act(
                 () => apiClient('POST', `/users/${user.id}/password`, { password }),
@@ -289,14 +296,14 @@ export function UserRowActions({
             رمز جدید برای «{user.name}». حداقل ۸ نویسه، شامل حرف و رقم. رمز فعلی نمایش داده نمی‌شود.
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
-            <Field label="رمز جدید" htmlFor={`pw-${user.id}`}>
-              <Input id={`pw-${user.id}`} type="password" dir="ltr" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <Field label="رمز جدید" htmlFor={`pw-${user.id}`} error={passwordError} hint="حداقل ۸ نویسه، شامل حرف و رقم.">
+              <PasswordInput id={`pw-${user.id}`} dir="ltr" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </Field>
             <Field label="تکرار رمز" htmlFor={`pw2-${user.id}`} error={mismatch ? 'رمزها یکسان نیستند.' : undefined}>
-              <Input id={`pw2-${user.id}`} type="password" dir="ltr" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+              <PasswordInput id={`pw2-${user.id}`} dir="ltr" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
             </Field>
           </div>
-          <Button type="submit" disabled={busy || mismatch}>{busy ? '…' : 'ذخیره رمز جدید'}</Button>
+          <Button type="submit" disabled={busy || !canSavePassword}>{busy ? '…' : 'ذخیره رمز جدید'}</Button>
         </form>
       ) : null}
       {open ? (
@@ -552,7 +559,7 @@ export function AiProviderForm() {
         <option value="offline">محلی (بدون کلید)</option>
       </Select></Field>
       <Field label="آدرس پایه" htmlFor="ai-url"><Input id="ai-url" dir="ltr" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} /></Field>
-      <Field label="کلید API" htmlFor="ai-key" hint="نوشتنی؛ هرگز نمایش داده نمی‌شود و رمزنگاری‌شده ذخیره می‌گردد."><Input id="ai-key" type="password" dir="ltr" value={apiKey} onChange={(e) => setApiKey(e.target.value)} /></Field>
+      <Field label="کلید API" htmlFor="ai-key" hint="نوشتنی؛ هرگز نمایش داده نمی‌شود و رمزنگاری‌شده ذخیره می‌گردد."><PasswordInput id="ai-key" dir="ltr" value={apiKey} onChange={(e) => setApiKey(e.target.value)} /></Field>
       <Field label="شناسه مدل" htmlFor="ai-model"><Input id="ai-model" dir="ltr" value={modelId} onChange={(e) => setModelId(e.target.value)} placeholder="مثلاً gpt-4o-mini" /></Field>
       <Button type="submit" disabled={busy}>{busy ? '…' : 'ذخیره سرویس'}</Button>
     </form>

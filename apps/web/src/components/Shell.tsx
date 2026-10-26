@@ -59,6 +59,7 @@ const GROUPS: NavGroup[] = [
       { href: '/admin/ai', label: 'هوش مصنوعی', icon: Brain, permission: 'ai.manage' },
       { href: '/admin/compliance', label: 'انطباق و حریم خصوصی', icon: ShieldCheck, permission: 'compliance.manage' },
       { href: '/admin/settings', label: 'تنظیمات و PWA', icon: Server, permission: 'settings.view' },
+      { href: '/admin/sms', label: 'پیامک و اطلاع‌رسانی', icon: MessagesSquare, permission: 'settings.view' },
       { href: '/admin/audit', label: 'گزارش رخدادها', icon: ScrollText, permission: 'audit.view' },
     ],
   },

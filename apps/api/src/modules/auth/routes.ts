@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { randomInt } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { authenticator } from 'otplib';
 import {
@@ -10,17 +11,20 @@ import {
   mfaCodeSchema,
   tourProgressSchema,
   consentSchema,
+  otpRequestSchema,
+  otpVerifySchema,
 } from '@pe/validation';
 import { db } from '../../db.js';
 import { config } from '../../config.js';
-import { asyncHandler, badRequest, conflict, sendData, unauthorized } from '../../lib/http.js';
-import { randomToken, sha256 } from '../../lib/crypto.js';
+import { asyncHandler, badRequest, conflict, sendData, serviceUnavailable, unauthorized } from '../../lib/http.js';
+import { hmacSha256, randomToken, safeEqual, sha256 } from '../../lib/crypto.js';
 import { createSession, destroySession, destroyUserSessions } from '../../lib/sessions.js';
 import { recordAudit } from '../../lib/audit.js';
 import { sendMail } from '../../lib/mailer.js';
+import { otpMessage, readSmsSettings, sendSms } from '../../lib/sms.js';
 import { attachAuth, getAuth, requireAuth, SESSION_COOKIE } from '../../middleware/auth.js';
 import { issueCsrf } from '../../middleware/csrf.js';
-import { loginLimiter, resetLimiter } from '../../middleware/rateLimit.js';
+import { loginLimiter, otpRequestLimiter, otpVerifyLimiter, resetLimiter } from '../../middleware/rateLimit.js';
 import { validateBody } from '../../middleware/validate.js';
 
 export const authRouter = Router();
@@ -99,6 +103,166 @@ authRouter.post(
       req,
     );
 
+    sendData(res, { user: publicUser(user) });
+  }),
+);
+
+// --- One-time password (OTP) login ----------------------------------------
+const OTP_TTL_MS = 2 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+
+function otpHash(userId: number, code: string): string {
+  // Keyed with APP_KEY so a leaked database row cannot be brute-forced offline.
+  return hmacSha256(`${userId}:${code}`, `login-otp:${config.APP_KEY}`);
+}
+
+function normalizeOtpDigits(value: string): string {
+  return value
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/\D/g, '');
+}
+
+/** OTP settings are per organization; a platform admin without one uses the first. */
+async function smsOrganizationId(organizationId: number | null): Promise<number> {
+  if (organizationId) return organizationId;
+  const organization = await db.organization.findFirst({ orderBy: { id: 'asc' }, select: { id: true } });
+  if (!organization) throw serviceUnavailable('سازمانی برای ارسال پیامک تنظیم نشده است.');
+  return organization.id;
+}
+
+authRouter.post(
+  '/otp/request',
+  otpRequestLimiter,
+  validateBody(otpRequestSchema),
+  asyncHandler(async (req, res) => {
+    const { email } = req.body as { email: string };
+    const user = await db.user.findFirst({
+      where: { email },
+      orderBy: { id: 'asc' },
+      select: { id: true, name: true, phone: true, status: true, organizationId: true },
+    });
+
+    // Always answer identically so the form cannot be used to discover accounts.
+    const generic = {
+      ok: true,
+      expiresIn: Math.floor(OTP_TTL_MS / 1000),
+      message: 'اگر حسابی با این ایمیل و شماره همراه ثبت‌شده وجود داشته باشد، کد ورود ارسال شد.',
+    };
+    if (!user || user.status !== 'active' || !user.phone) {
+      sendData(res, generic);
+      return;
+    }
+
+    const organizationId = await smsOrganizationId(user.organizationId);
+    const settings = await readSmsSettings(organizationId);
+    if (!settings.enabled || !settings.otpEnabled) {
+      throw badRequest('ورود با رمز یک‌بار مصرف در حال حاضر فعال نیست. با رمز عبور وارد شوید.');
+    }
+
+    const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    await db.$transaction([
+      db.loginOtp.deleteMany({ where: { userId: user.id, consumedAt: null } }),
+      db.loginOtp.create({
+        data: {
+          userId: user.id,
+          codeHash: otpHash(user.id, code),
+          expiresAt: new Date(Date.now() + OTP_TTL_MS),
+        },
+      }),
+    ]);
+
+    const result = await sendSms({
+      organizationId,
+      to: user.phone,
+      // With a service pattern the panel owns the wording and expects only the
+      // variable value (the code); otherwise send the configured template.
+      text: settings.otpPatternId ? code : otpMessage(settings.otpText, code),
+      kind: 'otp',
+      recipientUserId: user.id,
+      recipientName: user.name,
+      pattern: true,
+    });
+    if (!result.sent) {
+      console.error('[auth] OTP SMS failed:', result.error);
+      throw serviceUnavailable('ارسال پیامک ممکن نشد. لطفاً کمی بعد دوباره تلاش کنید یا با مدیر سامانه تماس بگیرید.');
+    }
+
+    await recordAudit(
+      {
+        organizationId,
+        actorUserId: user.id,
+        action: 'auth.otp_requested',
+        entityType: 'user',
+        entityId: user.id,
+        after: { expiresInSeconds: Math.floor(OTP_TTL_MS / 1000) },
+      },
+      req,
+    );
+    sendData(res, generic);
+  }),
+);
+
+authRouter.post(
+  '/otp/verify',
+  otpVerifyLimiter,
+  validateBody(otpVerifySchema),
+  asyncHandler(async (req, res) => {
+    const { email } = req.body as { email: string };
+    const code = normalizeOtpDigits((req.body as { code: string }).code);
+    const invalid = badRequest('کد وارد‌شده نامعتبر یا منقضی شده است. دوباره درخواست کنید.');
+
+    const user = await db.user.findFirst({
+      where: { email },
+      orderBy: { id: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        status: true,
+        mfaEnabled: true,
+        preferredLanguage: true,
+        themePreference: true,
+        organizationId: true,
+      },
+    });
+    if (!user || user.status !== 'active') throw invalid;
+
+    const otp = await db.loginOtp.findFirst({
+      where: { userId: user.id, consumedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!otp || otp.expiresAt < new Date() || otp.attempts >= OTP_MAX_ATTEMPTS) throw invalid;
+
+    if (!safeEqual(otp.codeHash, otpHash(user.id, code))) {
+      await db.loginOtp.update({
+        where: { id: otp.id },
+        data: {
+          attempts: { increment: 1 },
+          ...(otp.attempts + 1 >= OTP_MAX_ATTEMPTS ? { consumedAt: new Date() } : {}),
+        },
+      });
+      throw invalid;
+    }
+
+    // Single use: consume before creating the session so a replay always fails.
+    await db.loginOtp.update({ where: { id: otp.id }, data: { consumedAt: new Date() } });
+    const token = await createSession(user.id, { ip: req.ip, userAgent: req.get('user-agent') });
+    await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+
+    res.cookie(SESSION_COOKIE, token, cookieOptions);
+    issueCsrf(res);
+    await recordAudit(
+      {
+        organizationId: user.organizationId,
+        actorUserId: user.id,
+        action: 'auth.login_otp',
+        entityType: 'user',
+        entityId: user.id,
+      },
+      req,
+    );
     sendData(res, { user: publicUser(user) });
   }),
 );

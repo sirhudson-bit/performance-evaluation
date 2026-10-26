@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient, ApiClientError } from '@/lib/client';
 import { Button, Field, Input, Select, Alert, Badge } from '@/components/ui';
+import { PasswordInput } from '@/components/PasswordInput';
 
 export interface AiProviderRow {
   id: number;
@@ -123,7 +124,7 @@ export function AiProviderActions({ provider }: { provider: AiProviderRow }) {
             <Input id={`ai-url-${provider.id}`} dir="ltr" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
           </Field>
           <Field label="کلید API جدید" htmlFor={`ai-key-${provider.id}`} hint={`وضعیت کلید: ${provider.hasApiKey ? 'تنظیم‌شده (برای تغییر، مقدار جدید وارد کنید)' : 'تنظیم‌نشده'}`}>
-            <Input id={`ai-key-${provider.id}`} type="password" dir="ltr" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="خالی بگذارید تا تغییر نکند" />
+            <PasswordInput id={`ai-key-${provider.id}`} dir="ltr" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="خالی بگذارید تا تغییر نکند" />
           </Field>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={isFallback} onChange={(e) => setIsFallback(e.target.checked)} /> استفاده به‌عنوان سرویس جانشین (fallback)

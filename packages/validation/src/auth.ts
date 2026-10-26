@@ -29,6 +29,18 @@ export const mfaCodeSchema = z.object({
   code: z.string().trim().regex(/^\d{6}$/, 'کد شش‌رقمی را وارد کنید.'),
 });
 
+/** Request a one-time login code by email (sent as an SMS to the stored phone). */
+export const otpRequestSchema = z.object({ email });
+
+/** Verify a one-time login code. Persian digits are normalised in the API. */
+export const otpVerifySchema = z.object({
+  email,
+  code: z
+    .string()
+    .trim()
+    .regex(/^[0-9۰-۹]{6}$/, 'کد شش‌رقمی را وارد کنید.'),
+});
+
 export const consentSchema = z.object({
   categories: z.record(z.boolean()),
   policyVersion: z.string().max(20).default('1.0'),

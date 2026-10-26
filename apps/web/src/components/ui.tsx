@@ -94,9 +94,11 @@ export function Field({ label, htmlFor, hint, error, required, children }: { lab
 export const inputClass =
   'block w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500';
 
-export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={cn(inputClass, props.className)} />;
-}
+export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
+  function Input({ className, ...props }, ref) {
+    return <input ref={ref} {...props} className={cn(inputClass, className)} />;
+  },
+);
 
 export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...props} className={cn(inputClass, 'min-h-24', props.className)} />;

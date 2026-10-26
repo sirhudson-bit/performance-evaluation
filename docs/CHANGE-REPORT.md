@@ -556,3 +556,53 @@ width, and the tour/tip overlays fit inside 320 px and 390 px viewports.
   with no results gets explicit empty states rather than a blank page.
 - The demo database contains repeated test cycles (from earlier verification
   runs), so the sample report's trend has duplicates; production data is unaffected.
+
+## Session 9 — password visibility, credential error UX, SMS/OTP
+
+### What changed
+
+1. **Password visibility everywhere.** New `PasswordInput` wraps the field with
+   an eye button (`type="button"`, `aria-pressed`). Used in login, create user,
+   direct password set, profile change, reset-password, AI keys and SMS panel
+   password. The eye never submits the form.
+2. **422 errors explain themselves.** `apiClient` now prefers the first Zod field
+   message (e.g. «رمز عبور باید حداقل ۸ نویسه باشد») over the generic
+   «داده‌های ورودی معتبر نیست». Create/reset password forms validate with the
+   shared schema before submitting and disable the save button until the password
+   is valid and matches the confirmation. This removes the blank/too-short submit
+   path that produced the original generic error.
+3. **MeliPayamak settings.** `/admin/sms` (linked from `/admin/settings`) stores
+   `sms_*` settings per organization. The panel password is encrypted with
+   `APP_KEY` and never returned; an empty password on save keeps the stored one.
+   Includes sender line, base URL, OTP template, optional service-pattern
+   `bodyId`, a test send, delivery log, and documentation link.
+4. **OTP login.** `/auth/otp/request` and `/auth/otp/verify`, with a new
+   `login_otps` table. Codes are 6 digits, valid 2 minutes, single use, hashed
+   with HMAC-SHA256 keyed by `APP_KEY`, capped at 5 attempts and rate-limited.
+   Unknown emails get the same generic response. The login page has a tab for it.
+5. **System SMS.** `/admin/sms/send` sends to all users, managers, staff or one
+   user (max 200 per batch, 4 concurrent). Every attempt is written to
+   `sms_messages`; OTP bodies are redacted from the log. Also adds the previously
+   missing `/forgot-password` and `/reset-password` pages so reset links work.
+
+### Verification
+
+- `npm run typecheck` (api + web), `npm run lint` (0 warnings), `npm test` → 30/30.
+- Mock MeliPayamak provider on `127.0.0.1:4599`: settings save encrypted; test SMS
+  reached the mock with the expected form payload; bulk send 1/1; OTP request sent
+  a code, verify created a session, replay was rejected, `/auth/me` returned 200.
+- Real browser: `/admin/sms` renders settings/composer/logs; eye toggles
+  `password`→`text`; short password shows «حداقل ۸ نویسه» and disables save; OTP
+  tab sent a code, accepted it and landed on `/dashboard`; forgot/reset pages
+  render; 0 overflow at 320/390 px.
+- Test phone numbers and the demo password were restored; SMS settings were left
+  disabled with no sender/username. Delivery-log rows from the mock test remain in
+  the local demo database (they are not visible to production users).
+
+### Notes
+
+- SMS delivery requires the account's mobile number; users without one cannot
+  use OTP and are skipped by bulk sends.
+- The panel's `BaseServiceNumber` (pattern) mode expects only the variable value;
+  when `bodyId` is configured the API sends the raw code rather than the rendered
+  template.
