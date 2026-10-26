@@ -10,6 +10,8 @@
 set -euo pipefail
 
 APP_NAME="${APP_NAME:-kpi}"
+# Captured before `.env` is sourced: that file defines APP_NAME for the UI.
+PM2_APP_NAME="$APP_NAME"
 APP_DIR="${APP_DIR:-/var/www/kpi}"
 BRANCH="${BRANCH:-main}"
 WEB_PORT="${WEB_PORT:-3002}"
@@ -48,7 +50,7 @@ log "Building"
 API_URL="http://127.0.0.1:${API_PORT}" npm run build
 
 log "Restarting processes"
-APP_DIR="$APP_DIR" WEB_PORT="$WEB_PORT" API_PORT="$API_PORT" APP_NAME="$APP_NAME" \
+APP_DIR="$APP_DIR" WEB_PORT="$WEB_PORT" API_PORT="$API_PORT" APP_NAME="$PM2_APP_NAME" \
   pm2 startOrReload deploy/kpi/ecosystem.config.cjs --update-env
 pm2 save
 
