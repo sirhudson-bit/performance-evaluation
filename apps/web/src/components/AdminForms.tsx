@@ -26,30 +26,61 @@ function useSubmit() {
   return { message, busy, run };
 }
 
-export function UserForm({ roles, departments }: { roles: { id: number; name: string; isProtected: boolean }[]; departments: { id: number; name: string }[] }) {
+export function UserForm({ roles, departments, isSuperAdmin }: { roles: { id: number; name: string; isProtected: boolean }[]; departments: { id: number; name: string }[]; isSuperAdmin: boolean }) {
   const { message, busy, run } = useSubmit();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [roleIds, setRoleIds] = useState<number[]>([]);
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [generated, setGenerated] = useState('');
+  const mismatch = isSuperAdmin && password.length > 0 && password !== confirm;
 
   return (
     <form
       className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
+        if (mismatch) return;
         void run(async () => {
-          await apiClient('POST', '/users', { name, email, roleIds, status: 'active', departmentId: departmentId ? Number(departmentId) : null });
+          const res = await apiClient<{ generatedPassword?: string }>('POST', '/users', {
+            name,
+            email,
+            roleIds,
+            status: 'active',
+            departmentId: departmentId ? Number(departmentId) : null,
+            ...(isSuperAdmin && password ? { password } : {}),
+          });
+          setGenerated(res.generatedPassword ?? '');
           setName('');
           setEmail('');
           setRoleIds([]);
           setDepartmentId('');
+          setPassword('');
+          setConfirm('');
         }, 'کاربر ایجاد شد.');
       }}
     >
       {message ? <Alert variant={message.type}>{message.text}</Alert> : null}
+      {generated ? (
+        <Alert variant="info">
+          رمز موقت تولیدشده (فقط همین یک‌بار نمایش داده می‌شود):{' '}
+          <span dir="ltr" className="break-all font-mono">{generated}</span>
+        </Alert>
+      ) : null}
       <Field label="نام" htmlFor="u-name" required><Input id="u-name" value={name} onChange={(e) => setName(e.target.value)} required /></Field>
       <Field label="ایمیل" htmlFor="u-email" required><Input id="u-email" type="email" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} required /></Field>
+      {isSuperAdmin ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="رمز عبور" htmlFor="u-pass" hint="حداقل ۸ نویسه، شامل حرف و رقم.">
+            <Input id="u-pass" type="password" dir="ltr" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </Field>
+          <Field label="تکرار رمز عبور" htmlFor="u-pass2" error={mismatch ? 'رمزها یکسان نیستند.' : undefined}>
+            <Input id="u-pass2" type="password" dir="ltr" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          </Field>
+        </div>
+      ) : null}
       <Field label="دپارتمان / واحد کاری" htmlFor="u-dept">
         <Select id="u-dept" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
           <option value="">بدون واحد</option>
@@ -66,8 +97,12 @@ export function UserForm({ roles, departments }: { roles: { id: number; name: st
           ))}
         </div>
       </Field>
-      <Button type="submit" disabled={busy}>{busy ? '…' : 'ایجاد کاربر'}</Button>
-      <p className="text-xs text-slate-500">در صورت خالی‌بودن رمز، یک رمز موقت تولید و یک‌بار نمایش داده می‌شود.</p>
+      <Button type="submit" disabled={busy || mismatch}>{busy ? '…' : 'ایجاد کاربر'}</Button>
+      <p className="text-xs text-slate-500 dark:text-slate-400">
+        {isSuperAdmin
+          ? 'رمز را خودتان تعیین کنید، یا خالی بگذارید تا یک رمز موقت تولید و یک‌بار نمایش داده شود.'
+          : 'در صورت خالی‌بودن رمز، یک رمز موقت تولید و یک‌بار نمایش داده می‌شود.'}
+      </p>
     </form>
   );
 }
@@ -150,26 +185,34 @@ export function UserRowActions({
   roles,
   departments,
   isSelf,
+  isSuperAdmin,
 }: {
   user: EditUser;
   roles: { id: number; name: string; isProtected: boolean }[];
   departments: { id: number; name: string }[];
   isSelf: boolean;
+  isSuperAdmin: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
+  const [pwOpen, setPwOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const mismatch = password.length > 0 && password !== confirm;
 
-  async function act(fn: () => Promise<unknown>, ok: string) {
+  async function act(fn: () => Promise<unknown>, ok: string): Promise<boolean> {
     setBusy(true);
     setNote(null);
     try {
       await fn();
       setNote({ type: 'success', text: ok });
       router.refresh();
+      return true;
     } catch (err) {
       setNote({ type: 'danger', text: err instanceof ApiClientError ? err.message : 'خطا در انجام عملیات.' });
+      return false;
     } finally {
       setBusy(false);
     }
@@ -195,8 +238,13 @@ export function UserRowActions({
             }, 'پیوند بازنشانی صادر شد.')
           }
         >
-          بازنشانی رمز
+          ارسال پیوند بازنشانی
         </Button>
+        {isSuperAdmin ? (
+          <Button variant="secondary" disabled={busy} onClick={() => setPwOpen((v) => !v)}>
+            {pwOpen ? 'بستن' : 'تعیین رمز'}
+          </Button>
+        ) : null}
         {isSelf ? null : (
           <Button
             variant="danger"
@@ -218,6 +266,39 @@ export function UserRowActions({
           </span>
         </Alert>
       ) : null}
+      {isSuperAdmin && pwOpen ? (
+        <form
+          className="space-y-2 rounded border border-slate-200 p-3 dark:border-slate-700"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (mismatch) return;
+            void (async () => {
+              const ok = await act(
+                () => apiClient('POST', `/users/${user.id}/password`, { password }),
+                'رمز عبور تعیین شد و نشست‌های فعال کاربر بسته شدند.',
+              );
+              if (ok) {
+                setPwOpen(false);
+                setPassword('');
+                setConfirm('');
+              }
+            })();
+          }}
+        >
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            رمز جدید برای «{user.name}». حداقل ۸ نویسه، شامل حرف و رقم. رمز فعلی نمایش داده نمی‌شود.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Field label="رمز جدید" htmlFor={`pw-${user.id}`}>
+              <Input id={`pw-${user.id}`} type="password" dir="ltr" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </Field>
+            <Field label="تکرار رمز" htmlFor={`pw2-${user.id}`} error={mismatch ? 'رمزها یکسان نیستند.' : undefined}>
+              <Input id={`pw2-${user.id}`} type="password" dir="ltr" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+            </Field>
+          </div>
+          <Button type="submit" disabled={busy || mismatch}>{busy ? '…' : 'ذخیره رمز جدید'}</Button>
+        </form>
+      ) : null}
       {open ? (
         <div className="rounded border border-slate-200 p-3 dark:border-slate-700">
           <UserEditForm user={user} roles={roles} departments={departments} onDone={() => setOpen(false)} />
@@ -227,17 +308,52 @@ export function UserRowActions({
   );
 }
 
-export function QuestionForm({ categories }: { categories: { id: number; name: string }[] }) {
+export interface QuestionInitial {
+  id: number;
+  stableKey: string;
+  title: string;
+  text: string;
+  answerType: string;
+  weight: string | number;
+  categoryId: number | null;
+  status?: string;
+  options: { label: string; value: string; score: string | number | null }[];
+}
+
+type QuestionOptionDraft = { label: string; value: string; score: string };
+
+/** Empty draft row for the option editor. */
+const blankOption = (): QuestionOptionDraft => ({ label: '', value: '', score: '' });
+
+/**
+ * Question create/edit form.
+ *
+ * `initial` switches the form to edit mode: the stable key is immutable (it is
+ * the identity used by formulas and historical snapshots) and the options list
+ * is pre-filled. Administrators can add, edit and delete each option; deleting
+ * an option on a published question mints a new immutable question version, so
+ * old forms keep their original choices.
+ */
+export function QuestionForm({ categories, initial }: { categories: { id: number; name: string }[]; initial?: QuestionInitial }) {
   const { message, busy, run } = useSubmit();
-  const [stableKey, setStableKey] = useState('');
-  const [title, setTitle] = useState('');
-  const [text, setText] = useState('');
-  const [answerType, setAnswerType] = useState('rating_5');
-  const [weight, setWeight] = useState('1');
-  const [categoryId, setCategoryId] = useState('');
-  const [options, setOptions] = useState<{ label: string; value: string; score: string }[]>([{ label: '', value: '', score: '' }]);
+  const router = useRouter();
+  const editing = Boolean(initial);
+  const [stableKey, setStableKey] = useState(initial?.stableKey ?? '');
+  const [title, setTitle] = useState(initial?.title ?? '');
+  const [text, setText] = useState(initial?.text ?? '');
+  const [answerType, setAnswerType] = useState(initial?.answerType ?? 'rating_5');
+  const [weight, setWeight] = useState(String(initial?.weight ?? '1'));
+  const [categoryId, setCategoryId] = useState(initial?.categoryId ? String(initial.categoryId) : '');
+  const [options, setOptions] = useState<QuestionOptionDraft[]>(
+    initial && initial.options.length > 0
+      ? initial.options.map((o) => ({ label: o.label, value: o.value, score: o.score === null ? '' : String(o.score) }))
+      : [blankOption()],
+  );
 
   const isChoice = ['rating_5', 'single_choice', 'multi_choice', 'yes_no'].includes(answerType);
+
+  const updateOption = (index: number, patch: Partial<QuestionOptionDraft>) =>
+    setOptions((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
 
   return (
     <form
@@ -245,8 +361,7 @@ export function QuestionForm({ categories }: { categories: { id: number; name: s
       onSubmit={(e) => {
         e.preventDefault();
         void run(async () => {
-          await apiClient('POST', '/questions', {
-            stableKey,
+          const payload = {
             title,
             text,
             answerType,
@@ -254,19 +369,43 @@ export function QuestionForm({ categories }: { categories: { id: number; name: s
             categoryId: categoryId ? Number(categoryId) : null,
             respondentRoles: ['manager', 'self'],
             required: true,
-            status: 'active',
-            options: isChoice ? options.filter((o) => o.label).map((o, i) => ({ label: o.label, value: o.value || String(i + 1), score: o.score ? Number(o.score) : null, isNotApplicable: false, sortOrder: i })) : [],
+            status: initial?.status ?? 'active',
+            options: isChoice
+              ? options
+                  .filter((o) => o.label.trim())
+                  .map((o, i) => ({
+                    label: o.label.trim(),
+                    value: o.value.trim() || String(i + 1),
+                    score: o.score === '' ? null : Number(o.score),
+                    isNotApplicable: false,
+                    sortOrder: i,
+                  }))
+              : [],
             scoring: {},
-          });
-          setStableKey('');
-          setTitle('');
-          setText('');
-          setOptions([{ label: '', value: '', score: '' }]);
-        }, 'پرسش ایجاد شد.');
+          };
+          if (editing && initial) {
+            await apiClient('PATCH', `/questions/${initial.id}`, payload);
+            router.push('/admin/questions');
+            router.refresh();
+          } else {
+            await apiClient('POST', '/questions', { ...payload, stableKey });
+            setStableKey('');
+            setTitle('');
+            setText('');
+            setOptions([blankOption()]);
+          }
+        }, editing ? 'پرسش ویرایش شد و نسخه جدید ثبت گردید.' : 'پرسش ایجاد شد.');
       }}
     >
       {message ? <Alert variant={message.type}>{message.text}</Alert> : null}
-      <Field label="شناسه پایدار" htmlFor="q-key" hint="فقط حروف کوچک انگلیسی، رقم و زیرخط." required><Input id="q-key" dir="ltr" value={stableKey} onChange={(e) => setStableKey(e.target.value)} required /></Field>
+      {editing ? (
+        <Alert variant="info">
+          شناسه پایدار «{initial?.stableKey}» قابل تغییر نیست. هر ویرایش، نسخه جدیدی می‌سازد و نسخه‌های قبلی حفظ می‌شوند.
+        </Alert>
+      ) : null}
+      <Field label="شناسه پایدار" htmlFor="q-key" hint={editing ? 'در حالت ویرایش قابل تغییر نیست.' : 'فقط حروف کوچک انگلیسی، رقم و زیرخط.'} required={!editing}>
+        <Input id="q-key" dir="ltr" value={stableKey} onChange={(e) => setStableKey(e.target.value)} required={!editing} disabled={editing} />
+      </Field>
       <Field label="عنوان" htmlFor="q-title" required><Input id="q-title" value={title} onChange={(e) => setTitle(e.target.value)} required /></Field>
       <Field label="متن پرسش" htmlFor="q-text" required><Textarea id="q-text" value={text} onChange={(e) => setText(e.target.value)} required /></Field>
       <div className="grid gap-4 sm:grid-cols-3">
@@ -288,20 +427,31 @@ export function QuestionForm({ categories }: { categories: { id: number; name: s
       </div>
 
       {isChoice ? (
-        <div className="space-y-2 rounded border border-slate-200 p-3">
-          <p className="text-sm font-medium text-slate-700">گزینه‌ها (برچسب / مقدار / امتیاز ۰ تا ۱۰۰)</p>
+        <div className="space-y-2 rounded border border-slate-200 p-3 dark:border-slate-700">
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-200">گزینه‌ها</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">هر گزینه: برچسب، مقدار و امتیاز (۰ تا ۱۰۰). گزینه‌های خالی ذخیره نمی‌شوند.</p>
           {options.map((o, i) => (
-            <div key={i} className="flex gap-2">
-              <Input placeholder="برچسب" value={o.label} onChange={(e) => setOptions((prev) => prev.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
-              <Input placeholder="مقدار" dir="ltr" value={o.value} onChange={(e) => setOptions((prev) => prev.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} />
-              <Input placeholder="امتیاز" dir="ltr" type="number" value={o.score} onChange={(e) => setOptions((prev) => prev.map((x, j) => (j === i ? { ...x, score: e.target.value } : x)))} />
+            <div key={i} className="grid gap-2 rounded border border-slate-100 p-2 sm:grid-cols-[minmax(0,1fr)_8rem_6rem_auto] sm:items-center sm:border-0 sm:p-0 dark:border-slate-800">
+              <Input aria-label="برچسب گزینه" placeholder="برچسب" value={o.label} onChange={(e) => updateOption(i, { label: e.target.value })} />
+              <Input aria-label="مقدار گزینه" placeholder="مقدار" dir="ltr" value={o.value} onChange={(e) => updateOption(i, { value: e.target.value })} />
+              <Input aria-label="امتیاز گزینه" placeholder="امتیاز" dir="ltr" type="number" min={0} max={100} value={o.score} onChange={(e) => updateOption(i, { score: e.target.value })} />
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-rose-600 dark:text-rose-400"
+                aria-label={`حذف گزینه ${i + 1}`}
+                disabled={options.length === 1}
+                onClick={() => setOptions((prev) => prev.filter((_, j) => j !== i))}
+              >
+                حذف
+              </Button>
             </div>
           ))}
-          <Button type="button" variant="ghost" onClick={() => setOptions((prev) => [...prev, { label: '', value: '', score: '' }])}>افزودن گزینه</Button>
+          <Button type="button" variant="ghost" onClick={() => setOptions((prev) => [...prev, blankOption()])}>افزودن گزینه</Button>
         </div>
       ) : null}
 
-      <Button type="submit" disabled={busy}>{busy ? '…' : 'ایجاد پرسش'}</Button>
+      <Button type="submit" disabled={busy}>{busy ? '…' : editing ? 'ذخیره و ثبت نسخه جدید' : 'ایجاد پرسش'}</Button>
     </form>
   );
 }

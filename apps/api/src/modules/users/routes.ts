@@ -1,17 +1,28 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { userCreateSchema, userUpdateSchema, searchQuery } from '@pe/validation';
+import { userCreateSchema, userUpdateSchema, userSetPasswordSchema, searchQuery } from '@pe/validation';
 import { db } from '../../db.js';
 import { asyncHandler, badRequest, conflict, forbidden, notFound, sendData } from '../../lib/http.js';
 import { randomToken, sha256 } from '../../lib/crypto.js';
 import { config } from '../../config.js';
 import { sendMail } from '../../lib/mailer.js';
 import { recordAudit } from '../../lib/audit.js';
-import { requirePermission, getAuth } from '../../middleware/auth.js';
+import { requirePermission, getAuth, hasPermission } from '../../middleware/auth.js';
 import { requireOrganization } from '../../middleware/scope.js';
 import { validateBody, validateQuery, query } from '../../middleware/validate.js';
 
 export const usersRouter = Router();
+
+/**
+ * "مدیر ارشد سامانه" — the platform administrator. `settings.manage` is the
+ * permission the rest of the codebase already treats as platform-wide (exporting
+ * raw responses, deleting a platform admin); HR and managers never hold it.
+ */
+function assertSuperAdmin(auth: ReturnType<typeof getAuth>): void {
+  if (!hasPermission(auth, 'settings.manage')) {
+    throw forbidden('تعیین یا تغییر رمز عبور فقط توسط مدیر ارشد سامانه مجاز است.');
+  }
+}
 
 function selectUser() {
   return {
@@ -62,6 +73,10 @@ usersRouter.post(
     const auth = getAuth(req);
     const orgId = requireOrganization(auth);
     const body = req.body as { name: string; email: string; password?: string; roleIds: number[]; status: string; linkEmployeeId?: number | null; departmentId?: number | null };
+
+    // A caller-supplied password is a super-admin capability. Other administrators
+    // (e.g. HR) still create users, but the account gets a generated password.
+    if (body.password) assertSuperAdmin(auth);
 
     const existing = await db.user.findFirst({ where: { organizationId: orgId, email: body.email } });
     if (existing) throw conflict('کاربری با این ایمیل در سازمان ثبت شده است.', [{ path: 'email', message: 'این ایمیل تکراری است.' }]);
@@ -185,6 +200,39 @@ usersRouter.post(
       emailed: mail.sent,
       note: 'این پیوند یک‌بارمصرف و تا یک ساعت معتبر است. رمز فعلی هرگز نمایش داده نمی‌شود.',
     });
+  }),
+);
+
+/**
+ * Sets a password directly (no email round-trip). Super-admin only.
+ *
+ * Every other session of the target is revoked: if the password was changed
+ * because the account was compromised, an already-open session must not survive.
+ */
+usersRouter.post(
+  '/:id/password',
+  requirePermission('users.edit'),
+  validateBody(userSetPasswordSchema),
+  asyncHandler(async (req, res) => {
+    const auth = getAuth(req);
+    assertSuperAdmin(auth);
+    const orgId = requireOrganization(auth);
+    const id = Number(req.params.id);
+    const { password } = req.body as { password: string };
+
+    const target = await db.user.findFirst({ where: { id, organizationId: orgId } });
+    if (!target) throw notFound();
+
+    await db.user.update({ where: { id }, data: { passwordHash: await bcrypt.hash(password, 12) } });
+    await db.session.deleteMany({ where: { userId: id } });
+    await recordAudit({
+      organizationId: orgId,
+      actorUserId: auth.id,
+      action: 'user.password_set',
+      entityType: 'user',
+      entityId: id,
+    }, req);
+    sendData(res, { ok: true, note: 'رمز عبور تعیین شد و همه نشست‌های فعال کاربر بسته شدند.' });
   }),
 );
 

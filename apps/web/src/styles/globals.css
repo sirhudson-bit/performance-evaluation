@@ -108,3 +108,22 @@ button {
   inset-inline-start: 0.5rem;
   @apply rounded bg-brand-700 px-4 py-2 text-white;
 }
+
+/*
+ * Report printing: the app chrome (top bar, sidebar, floating tips) is not part
+ * of the report. Printing a person's report should produce the document only.
+ */
+@media print {
+  header,
+  aside,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .rounded,
+  .shadow-card {
+    box-shadow: none !important;
+  }
+}

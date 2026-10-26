@@ -13,12 +13,12 @@ export default async function TicketsPage() {
   return (
     <>
       <PageHeader title="پیام‌ها و تیکت‌ها" description="ارتباط با پشتیبانی و پیگیری درخواست‌ها" />
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
+      <div className="grid gap-6 xl:grid-cols-3">
+        <Card className="xl:col-span-1">
           <CardHeader title="درخواست جدید" />
           <CardBody><TicketCreateForm /></CardBody>
         </Card>
-        <Card className="lg:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader title="درخواست‌های من" subtitle={`${items.length} مورد`} />
           {items.length === 0 ? (
             <EmptyState title="درخواستی ثبت نشده است" description="در صورت نیاز به کمک، یک درخواست جدید ثبت کنید." />

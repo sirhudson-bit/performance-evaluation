@@ -15,13 +15,13 @@ export default async function AdminFormsPage() {
       <PageHeader title="فرم‌ها و نسخه‌ها" description="ایجاد، ویرایش، انتشار و حذف فرم‌ها" />
       <Alert variant="info">نسخه منتشرشده تغییرناپذیر است؛ برای تغییر، نسخه جدید بسازید. فرم استفاده‌شده در دوره بایگانی می‌شود تا تاریخچه حفظ گردد.</Alert>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        <Card className="xl:col-span-1">
           <CardHeader title="فرم جدید" />
           <CardBody><FormCreateForm /></CardBody>
         </Card>
 
-        <div className="space-y-6 lg:col-span-2">
+        <div className="space-y-6 xl:col-span-2">
           {forms.length === 0 ? (
             <Card><EmptyState title="فرمی ثبت نشده است" /></Card>
           ) : (

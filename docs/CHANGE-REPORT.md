@@ -459,3 +459,100 @@ no controls. New `AiProviderActions` client component (per row):
   the "AI is unconfigured (503)" assertion is no longer state-dependent.
 
 
+
+
+---
+
+## Session 8 — credentials, per-person reports, option editing, responsive audit
+
+Reported: super-admin password creation/reset, a per-person performance report,
+add/remove/edit question options, and forms/pages breaking when the viewport
+changes. All four were implemented and verified in a real browser and over HTTP.
+
+### 1. Super-admin password controls
+
+- **Create user with a password.** The create form shows «رمز عبور» + «تکرار رمز»
+  only to the platform super administrator (`settings.manage`). Leave them empty
+  and the API still generates a one-time password as before.
+- **Set/reset a password directly** (`POST /users/:id/password`) — super-admin
+  only, validated by `userSetPasswordSchema` (≥8 chars, letter + digit), hashed
+  with bcrypt (12 rounds), audited as `user.password_set`, and **all target
+  sessions are revoked** so a compromised login cannot survive the reset.
+- The existing single-use email **reset link** remains available for other
+  administrators; it never reveals the current password.
+- Server-side guard is independent of the UI: an HR account with `users.edit`
+  receives **403** from the new endpoint (verified with a real HR session).
+
+### 2. Per-person performance report
+
+- `GET /reports/employees` — scoped directory (self + current/historical reports,
+  or everyone with `employees.view_all`), searchable by name/employee number,
+  with each person's latest score/cycle/status.
+- `GET /reports/employees/:id` — full record: identity, summary KPIs, every
+  cycle result, evaluator/section breakdown of the latest result, assignment
+  states, agreements with indicator progress, improvement plans and appeals.
+  Foreign/out-of-scope ids resolve to **404** (verified against a manager
+  session: employee 1 → 404, their own reports → 200).
+- UI: `/reports/employees` and `/reports/employees/[id]`, with a «چاپ / ذخیره
+  PDF» button and print stylesheet. Linked from `/reports`, `/results` and each
+  row of `/admin/users` (when the account is linked to an employee).
+
+### 3. Question options
+
+- The create form now supports **add + edit + delete** for each option, with a
+  responsive per-option grid and an explicit delete action (the last one cannot
+  be deleted accidentally).
+- New `/admin/questions/[id]` editor pre-fills the question and its options;
+  saving uses the existing `PATCH /questions/:id`, which mints a new immutable
+  question version — deleting/editing an option never changes historical forms
+  or scores. Stable keys are read-only in edit mode.
+- Verified over HTTP: created a 3-option question, edited one option and removed
+  another → `v2` with exactly the two retained/edited options; archived the test
+  question afterwards.
+
+### 4. Responsive defects — actual causes and fixes
+
+Measured with a real browser at **320 / 390 / 500 / 768 / 1024 / 1440 px** on 20
+authenticated routes.
+
+1. **Every mobile page scrolled sideways.** The sidebar drawer was a `fixed`
+   element kept mounted and moved off-screen with `translate-x-full`. On mobile
+   that widened the layout viewport (measured 669 px at a 390 px viewport),
+   which also inflated fixed overlays (the guided tour measured 669 px wide).
+   Fixed by removing the closed drawer from layout (`hidden lg:block`) and
+   adding `overflow-x-clip` to the shell.
+2. **Forms were too narrow on 1024–1279 px.** 16 pages used
+   `lg:grid-cols-3`; with the 288 px sidebar the form column was ~213 px wide.
+   Those grids/col-spans now switch at `xl` (1280), so 1024 px gets a full-width
+   single column and 1280+ keeps the intended three columns.
+3. **Cards/tables could force the page wider than the viewport.** Cards are now
+   `min-w-0`, and the horizontal table wrapper is `max-w-full`, so wide tables
+   scroll inside their card instead of stretching the page.
+4. **Floating tip overflowed a 320 px viewport.** It is now inset on mobile
+   (`inset-x-3` + `sm:max-w-xs`) instead of a fixed 20rem box.
+5. Header/actions are `min-w-0` / `flex-wrap`; long org names truncate rather
+   than push the theme/help controls.
+
+Post-fix result: `scrollWidth - clientWidth = 0` on all 20 routes at every tested
+width, and the tour/tip overlays fit inside 320 px and 390 px viewports.
+
+### Verification
+
+- `npm run typecheck` (api + web) clean; `npm run lint` 0 warnings;
+  `npm test` → **22/22**.
+- `npm run build -w @pe/web` compiles with the new routes
+  (`/reports/employees`, `/reports/employees/[id]`, `/admin/questions/[id]`).
+- Real HTTP: chosen password at create → login 200; password reset → old
+  password **401**, new password **200**, sessions revoked; HR password-set
+  **403**; question option edit/delete → `v2`; per-person report scoping 404/200.
+- Real browser: users/questions/report pages render at phone and desktop widths;
+  no horizontal overflow; tour and tip cards stay inside the viewport.
+
+### Limits worth knowing
+
+- Option editing follows the `questions.edit` permission (HR normally holds it
+  too); the **password** controls are strictly platform-admin (`settings.manage`).
+- The per-person report shows data from published/persisted results; a person
+  with no results gets explicit empty states rather than a blank page.
+- The demo database contains repeated test cycles (from earlier verification
+  runs), so the sample report's trend has duplicates; production data is unaffected.

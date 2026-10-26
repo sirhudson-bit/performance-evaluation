@@ -16,15 +16,15 @@ export default async function AdminProcessesPage() {
     <>
       <PageHeader title="فرایندهای مدیریت عملکرد" description="طراحی فرایند، مراحل عملیاتی، افراد مسئول و ابعاد ارزیابی" />
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-3">
         {canManage ? (
-          <Card className="lg:col-span-1">
+          <Card className="xl:col-span-1">
             <CardHeader title="فرایند جدید" />
             <CardBody><ProcessForm /></CardBody>
           </Card>
         ) : null}
 
-        <Card className={canManage ? 'lg:col-span-2' : 'lg:col-span-3'}>
+        <Card className={canManage ? 'xl:col-span-2' : 'xl:col-span-3'}>
           <CardHeader title="فرایندها" subtitle={`${items.length} فرایند`} />
           {items.length === 0 ? (
             <EmptyState title="فرایندی ثبت نشده است" description="یک فرایند بسازید و مراحل و ابعاد آن را تعیین کنید." />

@@ -21,6 +21,15 @@ export const userUpdateSchema = z.object({
 });
 
 /**
+ * Set a user's password directly. Deliberately separate from `userUpdateSchema`
+ * so an ordinary profile edit can never change a credential, and gated on the
+ * server to the platform super administrator.
+ */
+export const userSetPasswordSchema = z.object({
+  password,
+});
+
+/**
  * A role is composed of permissions. Only names present in the catalog are
  * accepted, so a crafted request cannot invent a permission.
  */

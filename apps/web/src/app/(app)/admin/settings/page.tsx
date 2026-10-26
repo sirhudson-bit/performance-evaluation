@@ -13,12 +13,12 @@ export default async function AdminSettingsPage() {
         هیچ کلید API یا رمزی در این بخش نمایش داده نمی‌شود؛ کلید سرویس هوش مصنوعی فقط در بخش «هوش مصنوعی» و به‌صورت نوشتنی قابل تنظیم است.
       </Alert>
 
-      <div className="mt-4 grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="mt-4 grid gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2">
           <SettingsForm initial={data?.settings ?? {}} />
         </div>
 
-        <Card className="lg:col-span-1">
+        <Card className="xl:col-span-1">
           <CardHeader title="وضعیت سرویس‌های اختیاری" />
           <CardBody className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
             <p>• ایمیل تراکنشی (SMTP): در صورت تنظیم‌نشدن، پیام‌ها فقط در گزارش سرور ثبت می‌شوند و رابط کاربری این وضعیت را صادقانه نشان می‌دهد.</p>

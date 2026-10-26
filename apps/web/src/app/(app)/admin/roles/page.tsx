@@ -18,13 +18,13 @@ export default async function AdminRolesPage() {
       <PageHeader title="نقش‌ها و دسترسی‌ها" description="ایجاد و ویرایش نقش‌ها و دسترسی‌ها" />
       <Alert variant="info">نقش محافظت‌شده قابل ویرایش یا واگذاری نیست. دسترسی‌ها در سرور و برای هر درخواست بررسی می‌شوند.</Alert>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        <Card className="xl:col-span-1">
           <CardHeader title="نقش جدید" />
           <CardBody><RoleForm catalog={cat} /></CardBody>
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader title="نقش‌ها" subtitle={`${roles?.items.length ?? 0} نقش`} />
           {!roles || roles.items.length === 0 ? (
             <EmptyState title="نقشی یافت نشد" />

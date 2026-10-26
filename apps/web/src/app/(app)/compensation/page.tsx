@@ -39,9 +39,9 @@ export default async function CompensationPage() {
         این موارد صرفاً «پیشنهاد» هستند. هیچ پرداخت، افزایش حقوق یا تصمیم استخدامی به‌صورت خودکار اجرا نمی‌شود؛ تصمیم نهایی با فرد مجاز است و ثبت می‌گردد.
       </Alert>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
         {canRecommend ? (
-          <Card className="lg:col-span-1">
+          <Card className="xl:col-span-1">
             <CardHeader title="پیشنهاد جدید" subtitle="مدیر مستقیم می‌تواند برای کارکنان تحت مدیریت خود پیشنهاد ثبت کند" />
             <CardBody>
               <CompensationProposalForm
@@ -52,7 +52,7 @@ export default async function CompensationPage() {
           </Card>
         ) : null}
 
-        <Card className={canRecommend ? 'lg:col-span-2' : 'lg:col-span-3'}>
+        <Card className={canRecommend ? 'xl:col-span-2' : 'xl:col-span-3'}>
           <CardHeader title="پیشنهادها" subtitle={`${items.length} مورد`} />
           {items.length === 0 ? (
             <EmptyState title="پیشنهادی ثبت نشده است" />

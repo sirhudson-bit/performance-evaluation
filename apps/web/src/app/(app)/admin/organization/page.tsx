@@ -19,12 +19,12 @@ export default async function AdminOrganizationPage() {
       <PageHeader title="ساختار سازمانی" description="واحدها، سمت‌ها و روابط سازمانی" />
       <Alert variant="info">مثال‌ها: حسابداری، انبار، بازاریابی. تغییرات سازمانی در گزارش رخدادها ثبت می‌شود.</Alert>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        <Card className="xl:col-span-1">
           <CardHeader title="افزودن واحد" />
           <CardBody><UnitForm units={unitOptions} /></CardBody>
         </Card>
-        <Card className="lg:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader title="واحدها" subtitle={`${unitList.length} واحد`} />
           {unitList.length === 0 ? (
             <EmptyState title="واحدی ثبت نشده است" />
@@ -49,12 +49,12 @@ export default async function AdminOrganizationPage() {
         </Card>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        <Card className="xl:col-span-1">
           <CardHeader title="افزودن سمت" />
           <CardBody><PositionForm units={unitOptions} /></CardBody>
         </Card>
-        <Card className="lg:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader title="سمت‌ها" subtitle={`${positions?.items.length ?? 0} سمت`} />
           {!positions || positions.items.length === 0 ? (
             <EmptyState title="سمتی ثبت نشده است" />

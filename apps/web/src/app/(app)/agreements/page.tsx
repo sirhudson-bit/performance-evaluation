@@ -25,9 +25,9 @@ export default async function AgreementsPage() {
     <>
       <PageHeader title="توافق‌نامه‌های عملکرد" description="شاخص‌ها، انتظارات، نتایج کلیدی و پایش پیشرفت" />
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-3">
         {canManage ? (
-          <Card className="lg:col-span-1">
+          <Card className="xl:col-span-1">
             <CardHeader title="توافق‌نامه جدید" />
             <CardBody>
               <AgreementForm
@@ -38,7 +38,7 @@ export default async function AgreementsPage() {
           </Card>
         ) : null}
 
-        <Card className={canManage ? 'lg:col-span-2' : 'lg:col-span-3'}>
+        <Card className={canManage ? 'xl:col-span-2' : 'xl:col-span-3'}>
           <CardHeader title="توافق‌نامه‌ها" subtitle={`${items.length} مورد`} />
           {detailed.length === 0 ? (
             <EmptyState title="توافق‌نامه‌ای ثبت نشده است" />

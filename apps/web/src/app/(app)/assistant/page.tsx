@@ -15,8 +15,8 @@ export default async function AssistantPage() {
         </Alert>
       ) : null}
 
-      <div className="mt-4 grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      <div className="mt-4 grid gap-6 xl:grid-cols-3">
+        <Card className="xl:col-span-2">
           <CardBody>
             <AssistantChat enabled={Boolean(status?.enabled && status?.configured)} providerName={status?.providerName ?? null} />
           </CardBody>

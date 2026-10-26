@@ -23,13 +23,13 @@ export default async function AdminAiPage() {
         کلیدها فقط در سرور و به‌صورت رمزنگاری‌شده نگهداری می‌شوند و هرگز به مرورگر فرستاده نمی‌شوند. سرویس GapGPT پیشنهاد می‌شود اما پشتیبانی از نقاط پایانی/مدل‌ها تضمین‌شده نیست و باید بررسی شود.
       </Alert>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        <Card className="xl:col-span-1">
           <CardHeader title="افزودن سرویس" />
           <CardBody><AiProviderForm /></CardBody>
         </Card>
 
-        <div className="space-y-6 lg:col-span-2">
+        <div className="space-y-6 xl:col-span-2">
           <Card>
             <CardHeader title="سرویس‌های تنظیم‌شده" subtitle={`آدرس پیشنهادی: ${providers?.suggestedBaseUrl ?? '—'}`} />
             {!providers || providers.items.length === 0 ? (

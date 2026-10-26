@@ -82,19 +82,19 @@ export function Shell({ user, orgDisplayName, children }: { user: SessionUser; o
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-clip">
       {/* Top bar: full width, above the sidebar + content row. */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-surface px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <button onClick={() => setOpen((v) => !v)} aria-label={open ? 'بستن منو' : 'باز کردن منو'} aria-expanded={open} className="rounded p-2 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden">
             {open ? <X aria-hidden className="h-5 w-5" /> : <Menu aria-hidden className="h-5 w-5" />}
           </button>
-          <Link href="/dashboard" className="flex flex-col leading-tight">
-            <span className="text-sm font-bold text-slate-900 dark:text-slate-100">سامانه ارزیابی عملکرد</span>
-            <span className="text-xs text-slate-500 dark:text-slate-400">{orgDisplayName}</span>
+          <Link href="/dashboard" className="flex min-w-0 flex-col leading-tight">
+            <span className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">سامانه ارزیابی عملکرد</span>
+            <span className="truncate text-xs text-slate-500 dark:text-slate-400">{orgDisplayName}</span>
           </Link>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <Link href="/help" data-tour="help" className="rounded px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
             راهنما
           </Link>
@@ -105,8 +105,12 @@ export function Shell({ user, orgDisplayName, children }: { user: SessionUser; o
       <div className="lg:flex">
         <aside
           className={cn(
-            'fixed inset-y-0 right-0 z-40 w-72 overflow-y-auto border-l border-slate-200 bg-surface p-4 transition-transform duration-200 ease-out dark:border-slate-800 dark:bg-slate-900 lg:static lg:z-0 lg:h-[calc(100vh-3.75rem)] lg:translate-x-0',
-            open ? 'translate-x-0' : 'translate-x-full lg:translate-x-0',
+            // Below lg the sidebar is a drawer that is *removed from layout* when
+            // closed. Keeping it mounted but translated off-screen widened the
+            // mobile layout viewport (every page scrolled sideways) and inflated
+            // fixed overlays such as the guided tour to that wider width.
+            'fixed inset-y-0 right-0 z-40 w-72 overflow-y-auto border-l border-slate-200 bg-surface p-4 dark:border-slate-800 dark:bg-slate-900 lg:static lg:z-0 lg:block lg:h-[calc(100vh-3.75rem)]',
+            open ? 'block' : 'hidden',
           )}
         >
           <nav aria-label="ناوبری اصلی" data-tour="sidebar" className="space-y-4">

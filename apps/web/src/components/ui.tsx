@@ -14,7 +14,7 @@ const toneClass: Record<Tone, string> = {
 };
 
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <div className={cn('rounded border border-slate-200 bg-surface shadow-card dark:border-slate-800 dark:bg-slate-900', className)}>{children}</div>;
+  return <div className={cn('min-w-0 rounded border border-slate-200 bg-surface shadow-card dark:border-slate-800 dark:bg-slate-900', className)}>{children}</div>;
 }
 
 export function CardHeader({ title, subtitle, actions }: { title: React.ReactNode; subtitle?: React.ReactNode; actions?: React.ReactNode }) {
@@ -24,7 +24,7 @@ export function CardHeader({ title, subtitle, actions }: { title: React.ReactNod
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
         {subtitle ? <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p> : null}
       </div>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   );
 }
@@ -131,7 +131,7 @@ export function PageHeader({ title, description, actions }: { title: string; des
         <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">{title}</h1>
         {description ? <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p> : null}
       </div>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   );
 }
@@ -164,7 +164,7 @@ export function ProgressBar({ value, label }: { value: number; label?: string })
 
 export function Table({ head, children }: { head: React.ReactNode[]; children: React.ReactNode }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="max-w-full overflow-x-auto">
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-right text-slate-500 dark:border-slate-800 dark:text-slate-400">

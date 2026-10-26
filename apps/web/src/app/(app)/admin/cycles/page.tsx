@@ -21,8 +21,8 @@ export default async function AdminCyclesPage() {
     <>
       <PageHeader title="دوره‌های ارزیابی" description="ایجاد و مدیریت دوره‌ها و گردش‌کار" />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
+      <div className="grid gap-6 xl:grid-cols-3">
+        <Card className="xl:col-span-1">
           <CardHeader title="دوره جدید" />
           <CardBody>
             {publishedVersions.length === 0 ? (
@@ -33,7 +33,7 @@ export default async function AdminCyclesPage() {
           </CardBody>
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader title="دوره‌ها" subtitle={`${cycles?.items.length ?? 0} دوره`} />
           {!cycles || cycles.items.length === 0 ? (
             <EmptyState title="دوره‌ای ثبت نشده است" />

@@ -1,5 +1,5 @@
 import { apiData, getSession, hasPermission } from '@/lib/api';
-import { PageHeader, Card, CardHeader, Table, Td, EmptyState, StatusBadge, Alert } from '@/components/ui';
+import { PageHeader, Card, CardHeader, Table, Td, EmptyState, StatusBadge, Alert, LinkButton } from '@/components/ui';
 import { formatJalali, faDigits } from '@/lib/format';
 import { ReportExportForm } from '@/components/ReportExportForm';
 import type { Analytics } from '@/components/ReportsCharts';
@@ -39,7 +39,11 @@ export default async function ReportsPage() {
 
   return (
     <>
-      <PageHeader title="گزارش‌ها و خروجی اکسل" description="نمودارها، خروجی اکسل و وضعیت تکمیل" />
+      <PageHeader
+        title="گزارش‌ها و خروجی اکسل"
+        description="نمودارها، خروجی اکسل، وضعیت تکمیل و گزارش عملکرد هر فرد"
+        actions={<LinkButton href="/reports/employees" variant="secondary">گزارش عملکرد افراد</LinkButton>}
+      />
 
       <Alert variant="info">
         خروجی‌ها در پس‌زمینه ساخته می‌شوند و فقط ردیف‌هایی را شامل می‌شوند که مجاز به مشاهده آن‌ها هستید. لینک دانلود پس از هفت روز منقضی می‌شود.
@@ -51,15 +55,15 @@ export default async function ReportsPage() {
         </div>
       ) : null}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        <Card className="xl:col-span-1">
           <CardHeader title="خروجی جدید" />
           <div className="p-5">
             <ReportExportForm cycles={cycles?.items ?? []} canExportResponses={canExportResponses} />
           </div>
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader title="خروجی‌های recent" subtitle={`${faDigits(exportsData?.items.length ?? 0)} مورد`} />
           {!exportsData || exportsData.items.length === 0 ? (
             <EmptyState title="خروجی‌ای ساخته نشده است" />

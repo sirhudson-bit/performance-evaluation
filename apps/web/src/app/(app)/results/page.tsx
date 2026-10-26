@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { apiData, getSession, hasPermission } from '@/lib/api';
 import { PageHeader, Card, Table, Td, EmptyState, StatusBadge, Alert } from '@/components/ui';
 import { formatScore } from '@/lib/format';
@@ -43,7 +44,7 @@ export default async function ResultsPage() {
         {items.length === 0 ? (
           <EmptyState title="نتیجه‌ای در دسترس نیست" description="نتایج پس از انتشار توسط منابع انسانی نمایش داده می‌شوند." />
         ) : (
-          <Table head={['کارمند', 'شماره پرسنلی', 'دوره', 'امتیاز نهایی', 'وضعیت']}>
+          <Table head={['کارمند', 'شماره پرسنلی', 'دوره', 'امتیاز نهایی', 'وضعیت', '']}>
             {items.map((r) => (
               <tr key={r.id}>
                 <Td>{r.employee.firstName} {r.employee.lastName}</Td>
@@ -51,6 +52,11 @@ export default async function ResultsPage() {
                 <Td>{r.cycle.name}</Td>
                 <Td className="tabular font-medium">{formatScore(r.finalScore)}</Td>
                 <Td><StatusBadge group="assignmentStatus" value={r.status} /></Td>
+                <Td>
+                  <Link href={`/reports/employees/${r.employee.id}`} className="whitespace-nowrap text-xs font-medium text-brand-700 hover:underline dark:text-brand-300">
+                    گزارش فردی
+                  </Link>
+                </Td>
               </tr>
             ))}
           </Table>

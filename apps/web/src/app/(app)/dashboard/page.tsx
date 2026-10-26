@@ -49,8 +49,8 @@ export default async function DashboardPage() {
         <KpiTile label="نرخ تکمیل شما" value={`${faDigits(completion)}٪`} />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        <Card className="xl:col-span-2">
           <CardHeader title="ارزیابی‌های در انتظار اقدام" actions={<LinkButton href="/evaluations" variant="secondary">همه ارزیابی‌ها</LinkButton>} />
           {pending.length === 0 ? (
             <EmptyState title="موردی در انتظار اقدام نیست" description="در حال حاضر ارزیابی‌ای برای تکمیل ندارید." />

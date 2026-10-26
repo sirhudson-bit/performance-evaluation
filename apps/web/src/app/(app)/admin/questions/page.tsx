@@ -1,4 +1,5 @@
-import { apiData } from '@/lib/api';
+import Link from 'next/link';
+import { apiData, getSession, hasPermission } from '@/lib/api';
 import { PageHeader, Card, CardHeader, CardBody, Table, Td, EmptyState, StatusBadge, Badge } from '@/components/ui';
 import { QuestionForm } from '@/components/AdminForms';
 
@@ -10,6 +11,8 @@ const ANSWER_LABELS: Record<string, string> = {
 };
 
 export default async function AdminQuestionsPage() {
+  const user = await getSession();
+  const canEdit = hasPermission(user, 'questions.edit');
   const [questions, categories] = await Promise.all([
     apiData<{ items: Question[] }>('/questions'),
     apiData<{ items: { id: number; name: string }[] }>('/questions/categories'),
@@ -18,19 +21,19 @@ export default async function AdminQuestionsPage() {
   return (
     <>
       <PageHeader title="بانک پرسش‌ها" description="مدیریت پرسش‌ها، دسته‌ها و نسخه‌ها" />
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
+      <div className="grid gap-6 xl:grid-cols-3">
+        <Card className="xl:col-span-1">
           <CardHeader title="پرسش جدید" />
           <CardBody>
             <QuestionForm categories={categories?.items ?? []} />
           </CardBody>
         </Card>
-        <Card className="lg:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader title="پرسش‌ها" subtitle={`${questions?.items.length ?? 0} پرسش`} />
           {!questions || questions.items.length === 0 ? (
             <EmptyState title="پرسشی ثبت نشده است" />
           ) : (
-            <Table head={['عنوان', 'دسته', 'نوع', 'وزن', 'نسخه', 'وضعیت']}>
+            <Table head={['عنوان', 'دسته', 'نوع', 'وزن', 'نسخه', 'وضعیت', '']}>
               {questions.items.map((q) => (
                 <tr key={q.id}>
                   <Td>{q.title}</Td>
@@ -39,6 +42,15 @@ export default async function AdminQuestionsPage() {
                   <Td className="tabular">{q.weight}</Td>
                   <Td><Badge tone="muted">v{q.currentVersion}</Badge></Td>
                   <Td><StatusBadge group="questionStatus" value={q.status} /></Td>
+                  <Td>
+                    {canEdit ? (
+                      <Link href={`/admin/questions/${q.id}`} className="text-xs font-medium text-brand-700 hover:underline dark:text-brand-300">
+                        ویرایش گزینه‌ها
+                      </Link>
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
+                  </Td>
                 </tr>
               ))}
             </Table>

@@ -21,9 +21,9 @@ export default async function ImprovementPlansPage() {
   return (
     <>
       <PageHeader title="برنامه‌های بهبود" description="اقدامات بهبود عملکرد کارکنان" />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-3">
         {canManage ? (
-          <Card className="lg:col-span-1">
+          <Card className="xl:col-span-1">
             <CardHeader title="برنامه جدید" />
             <CardBody>
               <ImprovementPlanForm
@@ -34,7 +34,7 @@ export default async function ImprovementPlansPage() {
           </Card>
         ) : null}
 
-        <Card className={canManage ? 'lg:col-span-2' : 'lg:col-span-3'}>
+        <Card className={canManage ? 'xl:col-span-2' : 'xl:col-span-3'}>
           <CardHeader title="برنامه‌ها" subtitle={`${items.length} مورد`} />
           {items.length === 0 ? (
             <EmptyState title="برنامه‌ای ثبت نشده است" />

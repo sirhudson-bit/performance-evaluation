@@ -8,7 +8,7 @@ import { db } from '../../db.js';
 import { asyncHandler, badRequest, forbidden, notFound, sendData } from '../../lib/http.js';
 import { recordAudit } from '../../lib/audit.js';
 import { requirePermission, getAuth } from '../../middleware/auth.js';
-import { requireOrganization, resolveEmployeeScope } from '../../middleware/scope.js';
+import { requireOrganization, resolveEmployeeScope, assertEmployeeAccess } from '../../middleware/scope.js';
 import { validateBody } from '../../middleware/validate.js';
 import { enqueueJob } from '../../lib/jobs.js';
 import { exportLimiter, uploadLimiter } from '../../middleware/rateLimit.js';
@@ -187,6 +187,254 @@ reportsRouter.get(
       statuses: statusGroups.map((g) => ({ status: g.status, count: g._count._all })),
       byUnit,
       byPosition,
+    });
+  }),
+);
+
+// --- Per-person performance report ----------------------------------------
+/**
+ * Employee directory for the per-person report.
+ *
+ * Scope is enforced exactly like every other employee read: a manager sees
+ * themselves and their current/historical reports; `employees.view_all` (HR,
+ * platform admin) sees the organisation. Each row carries the latest result so
+ * the list is useful without opening every person.
+ */
+reportsRouter.get(
+  '/employees',
+  requirePermission('reports.view'),
+  asyncHandler(async (req, res) => {
+    const auth = getAuth(req);
+    const orgId = requireOrganization(auth);
+    const scope = await resolveEmployeeScope(auth);
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+
+    const items = await db.employee.findMany({
+      where: {
+        organizationId: orgId,
+        status: { not: 'archived' },
+        ...(scope.seesAll ? {} : { id: { in: scope.employeeIds } }),
+        ...(q
+          ? {
+              OR: [
+                { firstName: { contains: q, mode: 'insensitive' } },
+                { lastName: { contains: q, mode: 'insensitive' } },
+                { employeeNo: { contains: q, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        employeeNo: true,
+        firstName: true,
+        lastName: true,
+        status: true,
+        unit: { select: { name: true } },
+        position: { select: { title: true } },
+        results: {
+          orderBy: { updatedAt: 'desc' },
+          take: 1,
+          select: {
+            finalScore: true,
+            status: true,
+            publishedAt: true,
+            cycle: { select: { id: true, name: true } },
+          },
+        },
+      },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      take: 200,
+    });
+
+    sendData(res, {
+      items: items.map((row) => ({
+        id: row.id,
+        employeeNo: row.employeeNo,
+        name: `${row.firstName} ${row.lastName}`.trim(),
+        status: row.status,
+        unit: row.unit?.name ?? null,
+        position: row.position?.title ?? null,
+        latest: row.results[0]
+          ? {
+              score: row.results[0].finalScore !== null ? Number(row.results[0].finalScore) : null,
+              status: row.results[0].status,
+              publishedAt: row.results[0].publishedAt,
+              cycle: row.results[0].cycle,
+            }
+          : null,
+      })),
+    });
+  }),
+);
+
+/**
+ * One employee's full performance record: every cycle result with its
+ * evaluator/section breakdown, the assignment states, active agreements with
+ * indicator progress, improvement plans and appeals.
+ *
+ * A foreign or out-of-scope id resolves to 404, never 403.
+ */
+reportsRouter.get(
+  '/employees/:id',
+  requirePermission('reports.view'),
+  asyncHandler(async (req, res) => {
+    const auth = getAuth(req);
+    const orgId = requireOrganization(auth);
+    const employeeId = Number(req.params.id);
+    if (!Number.isFinite(employeeId)) throw notFound();
+    await assertEmployeeAccess(auth, employeeId);
+
+    const employee = await db.employee.findFirst({
+      where: { id: employeeId, organizationId: orgId },
+      select: {
+        id: true,
+        employeeNo: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        hireDate: true,
+        status: true,
+        unit: { select: { name: true } },
+        position: { select: { title: true } },
+        manager: { select: { firstName: true, lastName: true } },
+        user: { select: { id: true, email: true, lastLoginAt: true } },
+        results: {
+          orderBy: [{ cycle: { endDate: 'desc' } }],
+          select: {
+            id: true,
+            finalScore: true,
+            status: true,
+            publishedAt: true,
+            breakdown: true,
+            cycle: { select: { id: true, name: true, startDate: true, endDate: true, status: true } },
+          },
+        },
+        agreements: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            startDate: true,
+            endDate: true,
+            indicators: {
+              orderBy: { sortOrder: 'asc' },
+              select: { id: true, name: true, targetValue: true, actualValue: true, weight: true, progress: true },
+            },
+          },
+        },
+        improvementPlans: {
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, title: true, status: true, dueDate: true, actions: true },
+        },
+      },
+    });
+    if (!employee) throw notFound();
+
+    const assignments = await db.evaluationAssignment.findMany({
+      where: { organizationId: orgId, employeeId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        evaluatorRole: true,
+        status: true,
+        weight: true,
+        submittedAt: true,
+        dueDate: true,
+        cycle: { select: { id: true, name: true } },
+        scores: { select: { formScore: true, sectionScore: true } },
+      },
+    });
+
+    const appeals = await db.appealRequest.findMany({
+      where: { organizationId: orgId, employeeId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: { id: true, cycleId: true, reason: true, status: true, scoreBefore: true, scoreAfter: true, createdAt: true },
+    });
+
+    const scored = employee.results.filter((r) => r.finalScore !== null).map((r) => Number(r.finalScore));
+    const average = scored.length > 0 ? Math.round((scored.reduce((a, b) => a + b, 0) / scored.length) * 100) / 100 : null;
+
+    sendData(res, {
+      employee: {
+        id: employee.id,
+        employeeNo: employee.employeeNo,
+        name: `${employee.firstName} ${employee.lastName}`.trim(),
+        email: employee.email,
+        phone: employee.phone,
+        hireDate: employee.hireDate,
+        status: employee.status,
+        unit: employee.unit?.name ?? null,
+        position: employee.position?.title ?? null,
+        manager: employee.manager ? `${employee.manager.firstName} ${employee.manager.lastName}`.trim() : null,
+        account: employee.user ? { id: employee.user.id, email: employee.user.email, lastLoginAt: employee.user.lastLoginAt } : null,
+      },
+      summary: {
+        cycles: employee.results.length,
+        scored: scored.length,
+        average,
+        latest: employee.results[0]
+          ? {
+              score: employee.results[0].finalScore !== null ? Number(employee.results[0].finalScore) : null,
+              status: employee.results[0].status,
+              publishedAt: employee.results[0].publishedAt,
+              cycle: employee.results[0].cycle,
+              breakdown: employee.results[0].breakdown,
+            }
+          : null,
+        activePlans: employee.improvementPlans.filter((p) => p.status !== 'completed' && p.status !== 'cancelled').length,
+        activeAgreements: employee.agreements.filter((a) => a.status === 'active').length,
+        assignments: {
+          total: assignments.length,
+          completed: assignments.filter((a) => ['submitted', 'under_review', 'approved', 'published'].includes(a.status)).length,
+        },
+      },
+      results: employee.results.map((r) => ({
+        id: r.id,
+        score: r.finalScore !== null ? Number(r.finalScore) : null,
+        status: r.status,
+        publishedAt: r.publishedAt,
+        breakdown: r.breakdown,
+        cycle: r.cycle,
+      })),
+      assignments: assignments.map((a) => ({
+        id: a.id,
+        evaluatorRole: a.evaluatorRole,
+        status: a.status,
+        weight: Number(a.weight),
+        submittedAt: a.submittedAt,
+        dueDate: a.dueDate,
+        cycle: a.cycle,
+        score: a.scores[0]?.formScore !== undefined && a.scores[0]?.formScore !== null ? Number(a.scores[0].formScore) : null,
+      })),
+      agreements: employee.agreements.map((a) => ({
+        id: a.id,
+        title: a.title,
+        status: a.status,
+        startDate: a.startDate,
+        endDate: a.endDate,
+        indicators: a.indicators.map((i) => ({
+          id: i.id,
+          name: i.name,
+          target: i.targetValue !== null ? Number(i.targetValue) : null,
+          actual: i.actualValue !== null ? Number(i.actualValue) : null,
+          weight: Number(i.weight),
+          progress: i.progress,
+        })),
+      })),
+      improvementPlans: employee.improvementPlans,
+      appeals: appeals.map((a) => ({
+        id: a.id,
+        cycleId: a.cycleId,
+        reason: a.reason,
+        status: a.status,
+        scoreBefore: a.scoreBefore !== null ? Number(a.scoreBefore) : null,
+        scoreAfter: a.scoreAfter !== null ? Number(a.scoreAfter) : null,
+        createdAt: a.createdAt,
+      })),
     });
   }),
 );

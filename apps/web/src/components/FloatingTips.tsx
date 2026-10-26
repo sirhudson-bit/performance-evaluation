@@ -48,7 +48,7 @@ export function FloatingTips() {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 z-40 max-w-xs">
+    <div className="fixed inset-x-3 bottom-4 z-40 sm:inset-x-auto sm:left-4 sm:max-w-xs">
       <div className="flex items-start gap-2 rounded border border-brand-200 bg-white p-3 shadow-card dark:border-brand-900 dark:bg-slate-900" role="status">
         <Lightbulb aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-brand-600 dark:text-brand-300" />
         <p className="text-xs leading-6 text-slate-700 dark:text-slate-200">{TIPS[index]}</p>
