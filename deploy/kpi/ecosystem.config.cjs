@@ -10,7 +10,9 @@
 const appDir = process.env.APP_DIR || "/var/www/kpi";
 const webPort = process.env.WEB_PORT || "3002";
 const apiPort = process.env.API_PORT || "4000";
-const appName = process.env.APP_NAME || "kpi";
+// Deliberately not `APP_NAME`: the application's .env uses that key for the
+// Persian product name, which must never become a process name or log path.
+const appName = process.env.PM2_APP_NAME || "kpi";
 const node = process.execPath;
 
 const shared = {
