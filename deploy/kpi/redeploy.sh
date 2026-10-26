@@ -29,7 +29,12 @@ git reset --hard "origin/$BRANCH"
 log "Backing up the database"
 set -a; . ./.env; set +a
 mkdir -p /var/backups/kpi
-pg_dump "$DATABASE_URL" > "/var/backups/kpi/kpi-$(date +%Y%m%d-%H%M%S).sql"
+# `DATABASE_URL` carries Prisma's `?schema=public` query parameter. libpq's
+# pg_dump rejects that parameter ("invalid URI query parameter: schema"), so the
+# dump uses the same URL without its query string. Prisma still gets the full
+# URL from .env.
+DUMP_URL="${DATABASE_URL%%\?*}"
+pg_dump "$DUMP_URL" > "/var/backups/kpi/kpi-$(date +%Y%m%d-%H%M%S).sql"
 ls -1t /var/backups/kpi/*.sql 2>/dev/null | tail -n +11 | xargs -r rm --
 
 log "Installing dependencies"

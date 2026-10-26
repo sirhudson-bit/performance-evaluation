@@ -68,3 +68,7 @@ schema change that needs a destructive step must be planned, not improvised.
   demo seed creates (`SEED_DEMO_DATA=true`). Against this deployment it fails at
   the first login and does not indicate a broken install. Verify production
   with the CSRF → login → `/auth/me` sequence instead.
+- **`pg_dump` cannot read Prisma's `?schema=public` query parameter.** The
+  redeploy script strips the query string for the dump only; do the same if you
+  back up by hand (`pg_dump "${DATABASE_URL%%\?*}"`), otherwise it exits with
+  `invalid URI query parameter: "schema"` before any code is deployed.
