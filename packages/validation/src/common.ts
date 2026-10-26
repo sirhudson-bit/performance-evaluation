@@ -25,13 +25,13 @@ export const persianName = z
   .max(80, 'نام بیش از حد طولانی است.')
   .regex(/^[\u0600-\u06FF\u200c\s]+$/u, 'فقط حروف فارسی، فاصله و نیم‌فاصله مجاز است.');
 
-/** Password policy: at least 8 chars with a letter and a digit. */
+/** Password policy: at least 8 chars with a letter and a digit (any script). */
 export const password = z
   .string()
   .min(8, 'رمز عبور باید حداقل ۸ نویسه باشد.')
   .max(200, 'رمز عبور بیش از حد طولانی است.')
-  .regex(/[A-Za-z]/, 'رمز عبور باید حداقل یک حرف داشته باشد.')
-  .regex(/[0-9]/, 'رمز عبور باید حداقل یک رقم داشته باشد.');
+  .regex(/\p{L}/u, 'رمز عبور باید حداقل یک حرف داشته باشد.')
+  .regex(/\p{Nd}/u, 'رمز عبور باید حداقل یک رقم داشته باشد.');
 
 /** Optional Iranian phone, validated only when a value is provided. */
 export const optionalPhone = z
