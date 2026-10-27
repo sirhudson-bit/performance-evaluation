@@ -73,10 +73,52 @@ export function otpMessage(template: string, code: string): string {
   return template.includes('{code}') ? template.replaceAll('{code}', code) : `${template} ${code}`;
 }
 
-function endpoint(baseUrl: string, operation: 'SendSMS' | 'BaseServiceNumber'): string {
-  const base = (baseUrl || DEFAULT_SMS_BASE_URL).trim().replace(/\/+$/, '');
-  if (base.endsWith('/SendSMS')) return `${base.slice(0, -'SendSMS'.length)}${operation}`;
-  return `${base}/${operation}`;
+/**
+ * Resolves the operation URL from the configured base.
+ *
+ * Administrators reasonably paste either the docs page, the API root, or an
+ * operation path such as `.../api/SendSMS/SendOtp`. Appending `/SendSMS` to
+ * that last form produced `.../SendOtp/SendSMS`, which the panel answers with an
+ * HTML 404 page. For the official panel host we always use the documented
+ * operation path; other (custom/proxy) hosts get the operation appended once.
+ */
+export function smsEndpoint(baseUrl: string, operation: 'SendSMS' | 'BaseServiceNumber'): string {
+  const fallback = `${DEFAULT_SMS_BASE_URL.slice(0, -'SendSMS'.length)}${operation}`;
+  let url: URL;
+  try {
+    url = new URL((baseUrl || DEFAULT_SMS_BASE_URL).trim());
+  } catch {
+    return fallback;
+  }
+  if (!/^https?:$/.test(url.protocol)) return fallback;
+
+  // The marketing/docs site returns an HTML page; never POST there.
+  if (url.hostname.endsWith('melipayamak.com') && url.hostname !== 'rest.payamak-panel.com') {
+    return fallback;
+  }
+  // The official REST host has a fixed operation layout.
+  if (url.hostname === 'rest.payamak-panel.com') return fallback;
+
+  const parts = url.pathname.split('/').filter(Boolean);
+  const ops = ['SendSMS', 'BaseServiceNumber', 'SendOtp'];
+  if (parts.length > 0 && ops.includes(parts[parts.length - 1])) parts[parts.length - 1] = operation;
+  else parts.push(operation);
+  url.pathname = `/${parts.join('/')}`;
+  url.search = '';
+  url.hash = '';
+  return url.toString().replace(/\/$/, '');
+}
+
+/** The canonical URL for the official panel; custom proxies are left untouched. */
+export function canonicalSmsBaseUrl(baseUrl: string): string {
+  try {
+    const url = new URL((baseUrl || '').trim());
+    if (url.hostname === 'rest.payamak-panel.com') return DEFAULT_SMS_BASE_URL;
+    if (url.hostname.endsWith('melipayamak.com')) return DEFAULT_SMS_BASE_URL;
+  } catch {
+    /* fall through to the raw/default value */
+  }
+  return (baseUrl || '').trim() || DEFAULT_SMS_BASE_URL;
 }
 
 /** Reads and decrypts settings. Decryption failure is reported, never thrown. */
@@ -101,7 +143,7 @@ export async function readSmsSettings(organizationId: number): Promise<SmsSettin
     username: map.get(KEY.username) ?? '',
     password,
     from: map.get(KEY.from) ?? '',
-    baseUrl: map.get(KEY.baseUrl) ?? DEFAULT_SMS_BASE_URL,
+    baseUrl: canonicalSmsBaseUrl(map.get(KEY.baseUrl) ?? ''),
     otpEnabled: map.get(KEY.otpEnabled) !== 'false',
     otpText: map.get(KEY.otpText) ?? DEFAULT_OTP_TEXT,
     otpPatternId: map.get(KEY.otpPatternId) ?? '',
@@ -118,7 +160,7 @@ export async function writeSmsSettings(organizationId: number, input: SmsSetting
     [KEY.enabled]: String(input.enabled),
     [KEY.username]: (input.username ?? '').trim(),
     [KEY.from]: (input.from ?? '').trim(),
-    [KEY.baseUrl]: (input.baseUrl ?? '').trim() || DEFAULT_SMS_BASE_URL,
+    [KEY.baseUrl]: canonicalSmsBaseUrl(input.baseUrl ?? ''),
     [KEY.otpEnabled]: String(input.otpEnabled ?? true),
     [KEY.otpText]: (input.otpText ?? '').trim() || DEFAULT_OTP_TEXT,
     [KEY.otpPatternId]: (input.otpPatternId ?? '').trim(),
@@ -180,6 +222,13 @@ async function callProvider(url: string, payload: Record<string, string>): Promi
   }
 
   const raw = await response.text();
+  const contentType = response.headers.get('content-type') ?? '';
+  if (contentType.includes('text/html') || /^\s*<!DOCTYPE html/i.test(raw)) {
+    return {
+      sent: false,
+      error: `آدرس وب‌سرویس پیامک پاسخ HTML داد (HTTP ${response.status}). آدرس را به https://rest.payamak-panel.com/api/SendSMS/SendSMS تغییر دهید.`,
+    };
+  }
   let body: unknown = raw;
   try {
     body = JSON.parse(raw) as unknown;
@@ -235,7 +284,7 @@ export async function sendSms(options: SendSmsOptions): Promise<SmsResult> {
     if (usePattern) payload.bodyId = settings.otpPatternId;
     else payload.from = settings.from;
     payload.isFlash = 'false';
-    result = await callProvider(endpoint(settings.baseUrl, usePattern ? 'BaseServiceNumber' : 'SendSMS'), payload);
+    result = await callProvider(smsEndpoint(settings.baseUrl, usePattern ? 'BaseServiceNumber' : 'SendSMS'), payload);
   }
 
   await db.smsMessage

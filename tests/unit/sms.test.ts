@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isValidMobile, normalizePhone, otpMessage, parseProviderResponse } from '../../apps/api/src/lib/sms.js';
+import { DEFAULT_SMS_BASE_URL, isValidMobile, normalizePhone, otpMessage, parseProviderResponse, smsEndpoint } from '../../apps/api/src/lib/sms.js';
 
 describe('normalizePhone', () => {
   it('normalises Iranian mobile formats to 09xxxxxxxxx', () => {
@@ -29,6 +29,26 @@ describe('otpMessage', () => {
 
   it('appends the code when the template has no placeholder', () => {
     expect(otpMessage('کد ورود', '123456')).toBe('کد ورود 123456');
+  });
+});
+
+describe('smsEndpoint', () => {
+  it('uses the documented operation path on the official host', () => {
+    expect(smsEndpoint('https://rest.payamak-panel.com/api/SendSMS/SendOtp', 'SendSMS')).toBe(
+      'https://rest.payamak-panel.com/api/SendSMS/SendSMS',
+    );
+    expect(smsEndpoint('https://rest.payamak-panel.com/api/SendSMS/SendOtp', 'BaseServiceNumber')).toBe(
+      'https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber',
+    );
+  });
+
+  it('never posts to the documentation site', () => {
+    expect(smsEndpoint('https://www.melipayamak.com/api/', 'SendSMS')).toBe(DEFAULT_SMS_BASE_URL);
+  });
+
+  it('appends an operation once on a custom host', () => {
+    expect(smsEndpoint('https://sms.example.com/api', 'SendSMS')).toBe('https://sms.example.com/api/SendSMS');
+    expect(smsEndpoint('https://sms.example.com/api/SendOtp', 'SendSMS')).toBe('https://sms.example.com/api/SendSMS');
   });
 });
 
