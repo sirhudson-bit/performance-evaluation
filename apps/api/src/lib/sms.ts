@@ -101,7 +101,8 @@ export function smsEndpoint(baseUrl: string, operation: 'SendSMS' | 'BaseService
 
   const parts = url.pathname.split('/').filter(Boolean);
   const ops = ['SendSMS', 'BaseServiceNumber', 'SendOtp'];
-  if (parts.length > 0 && ops.includes(parts[parts.length - 1])) parts[parts.length - 1] = operation;
+  const last = parts.at(-1);
+  if (last && ops.includes(last)) parts[parts.length - 1] = operation;
   else parts.push(operation);
   url.pathname = `/${parts.join('/')}`;
   url.search = '';
