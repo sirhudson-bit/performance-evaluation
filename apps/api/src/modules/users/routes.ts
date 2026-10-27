@@ -72,7 +72,7 @@ usersRouter.post(
   asyncHandler(async (req, res) => {
     const auth = getAuth(req);
     const orgId = requireOrganization(auth);
-    const body = req.body as { name: string; email: string; password?: string; roleIds: number[]; status: string; linkEmployeeId?: number | null; departmentId?: number | null };
+    const body = req.body as { name: string; email: string; phone?: string; password?: string; roleIds: number[]; status: string; linkEmployeeId?: number | null; departmentId?: number | null };
 
     // A caller-supplied password is a super-admin capability. Other administrators
     // (e.g. HR) still create users, but the account gets a generated password.
@@ -88,6 +88,7 @@ usersRouter.post(
         organizationId: orgId,
         name: body.name,
         email: body.email,
+        phone: body.phone ?? null,
         passwordHash: bcrypt.hashSync(password, 12),
         status: body.status,
         departmentId: body.departmentId ?? null,

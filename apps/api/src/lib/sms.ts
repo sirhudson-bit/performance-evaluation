@@ -26,6 +26,9 @@ const KEY = {
   otpEnabled: 'sms_otp_enabled',
   otpText: 'sms_otp_text',
   otpPatternId: 'sms_otp_pattern_id',
+  windowEnabled: 'sms_window_enabled',
+  windowStart: 'sms_window_start',
+  windowEnd: 'sms_window_end',
 } as const;
 
 export interface SmsSettings {
@@ -37,6 +40,9 @@ export interface SmsSettings {
   otpEnabled: boolean;
   otpText: string;
   otpPatternId: string;
+  windowEnabled: boolean;
+  windowStart: string;
+  windowEnd: string;
   hasPassword: boolean;
   configured: boolean;
 }
@@ -50,6 +56,9 @@ export interface SmsSettingsInput {
   otpEnabled?: boolean;
   otpText?: string;
   otpPatternId?: string;
+  windowEnabled?: boolean;
+  windowStart?: string;
+  windowEnd?: string;
 }
 
 /** Converts Persian/Arabic digits and common +98 forms to `09xxxxxxxxx`. */
@@ -71,6 +80,45 @@ export function isValidMobile(input: string): boolean {
 
 export function otpMessage(template: string, code: string): string {
   return template.includes('{code}') ? template.replaceAll('{code}', code) : `${template} ${code}`;
+}
+
+const SMS_TIME_ZONE = 'Asia/Tehran';
+
+/**
+ * Whether system messages are allowed right now. OTP login and the test button
+ * deliberately bypass this window: locking someone out at night because the
+ * bulk-message window is closed would be a security/UX bug, not a feature.
+ */
+export function isWithinSmsWindow(
+  settings: Pick<SmsSettings, 'windowEnabled' | 'windowStart' | 'windowEnd'>,
+  now: Date = new Date(),
+): boolean {
+  if (!settings.windowEnabled) return true;
+  const parse = (value: string): number | null => {
+    const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
+    return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+  };
+  const start = parse(settings.windowStart);
+  const end = parse(settings.windowEnd);
+  if (start === null || end === null) return true;
+
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: SMS_TIME_ZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now);
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? '0');
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? '0');
+  const current = hour * 60 + minute;
+
+  if (start === end) return true; // 24-hour window
+  // A window such as 20:00–08:00 crosses midnight.
+  return start < end ? current >= start && current < end : current >= start || current < end;
+}
+
+export function smsWindowText(settings: Pick<SmsSettings, 'windowStart' | 'windowEnd'>): string {
+  return `از ${settings.windowStart} تا ${settings.windowEnd} (به وقت تهران)`;
 }
 
 /**
@@ -148,6 +196,9 @@ export async function readSmsSettings(organizationId: number): Promise<SmsSettin
     otpEnabled: map.get(KEY.otpEnabled) !== 'false',
     otpText: map.get(KEY.otpText) ?? DEFAULT_OTP_TEXT,
     otpPatternId: map.get(KEY.otpPatternId) ?? '',
+    windowEnabled: map.get(KEY.windowEnabled) === 'true',
+    windowStart: map.get(KEY.windowStart) ?? '08:00',
+    windowEnd: map.get(KEY.windowEnd) ?? '20:00',
     hasPassword: Boolean(stored),
     configured: false,
   };
@@ -165,6 +216,9 @@ export async function writeSmsSettings(organizationId: number, input: SmsSetting
     [KEY.otpEnabled]: String(input.otpEnabled ?? true),
     [KEY.otpText]: (input.otpText ?? '').trim() || DEFAULT_OTP_TEXT,
     [KEY.otpPatternId]: (input.otpPatternId ?? '').trim(),
+    [KEY.windowEnabled]: String(input.windowEnabled ?? false),
+    [KEY.windowStart]: (input.windowStart ?? '').trim() || '08:00',
+    [KEY.windowEnd]: (input.windowEnd ?? '').trim() || '20:00',
   };
   if (input.password) values[KEY.password] = encryptSecret(input.password);
 
@@ -272,6 +326,8 @@ export async function sendSms(options: SendSmsOptions): Promise<SmsResult> {
     result = { sent: false, error: 'نام کاربری، رمز یا خط ارسال پنل پیامک تنظیم نشده است.' };
   } else if (!settings.enabled && !options.ignoreEnabled) {
     result = { sent: false, error: 'سرویس پیامک در تنظیمات غیرفعال است.' };
+  } else if (options.kind === 'system' && !isWithinSmsWindow(settings)) {
+    result = { sent: false, error: `ارسال پیام سامانه خارج از بازه مجاز ${smsWindowText(settings)} است.` };
   } else if (!/^09\d{9}$/.test(to)) {
     result = { sent: false, error: 'شماره تلفن همراه گیرنده معتبر نیست.' };
   } else {

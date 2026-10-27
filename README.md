@@ -150,12 +150,15 @@ panel password is never returned to the browser. A test send verifies the
 connection before enabling it.
 
 - **Passwordless login:** the login page has a «رمز یک‌بار مصرف» tab. A 6-digit
-  code is sent to the mobile number stored on the account, valid for 2 minutes,
+  code is sent to the mobile number stored on the account (the create-user form
+  now accepts one), valid for 2 minutes,
   single-use, with at most 5 verification attempts and per-IP rate limits.
 - **System messages:** `/admin/sms` can send a message to all active users, only
   managers (`department_manager`, `hr_manager`, `system_admin`,
   `platform_super_admin`), only staff, or one selected user. Recipients without a
-  mobile number are skipped; every attempt is logged.
+  mobile number are skipped; every attempt is logged. An optional daily send
+  window (default 08:00–20:00, Tehran time, overnight ranges supported) can block
+  bulk messages outside working hours; OTP and test sends bypass it.
 - **Service patterns:** set the pattern `bodyId` in the SMS settings to send OTP
   through a MeliPayamak service pattern (the panel owns the wording and receives
   only the code). Without a pattern, `sms_otp_text` (with `{code}`) is used.

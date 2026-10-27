@@ -4,6 +4,7 @@ import { email, password, persianName, optionalPhone } from './common.js';
 export const userCreateSchema = z.object({
   name: persianName,
   email,
+  phone: optionalPhone,
   password: password.optional(),
   roleIds: z.array(z.coerce.number().int().positive()).default([]),
   status: z.enum(['active', 'suspended', 'archived']).default('active'),

@@ -3,7 +3,7 @@ import { smsSettingsSchema, smsSendSchema, smsTestSchema } from '@pe/validation'
 import { db } from '../../db.js';
 import { asyncHandler, badRequest, sendData } from '../../lib/http.js';
 import { recordAudit } from '../../lib/audit.js';
-import { readSmsSettings, sendSms, writeSmsSettings, type SmsSettings } from '../../lib/sms.js';
+import { isWithinSmsWindow, readSmsSettings, sendSms, smsWindowText, writeSmsSettings, type SmsSettings } from '../../lib/sms.js';
 import { getAuth, requirePermission } from '../../middleware/auth.js';
 import { requireOrganization } from '../../middleware/scope.js';
 import { validateBody } from '../../middleware/validate.js';
@@ -45,6 +45,9 @@ smsRouter.put(
       otpEnabled?: boolean;
       otpText?: string;
       otpPatternId?: string;
+      windowEnabled?: boolean;
+      windowStart?: string;
+      windowEnd?: string;
     };
 
     const settings = await writeSmsSettings(organizationId, body);
@@ -139,6 +142,11 @@ smsRouter.post(
     const auth = getAuth(req);
     const organizationId = requireOrganization(auth);
     const body = req.body as { audience: string; userId?: number; text: string };
+
+    const smsSettings = await readSmsSettings(organizationId);
+    if (!isWithinSmsWindow(smsSettings)) {
+      throw badRequest(`ارسال پیام سامانه فقط ${smsWindowText(smsSettings)} مجاز است.`);
+    }
 
     const recipients = await db.user.findMany({
       where: audienceWhere(organizationId, body.audience, body.userId),

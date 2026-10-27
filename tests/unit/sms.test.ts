@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SMS_BASE_URL, isValidMobile, normalizePhone, otpMessage, parseProviderResponse, smsEndpoint } from '../../apps/api/src/lib/sms.js';
+import {
+  DEFAULT_SMS_BASE_URL,
+  isWithinSmsWindow,
+  isValidMobile,
+  normalizePhone,
+  otpMessage,
+  parseProviderResponse,
+  smsEndpoint,
+} from '../../apps/api/src/lib/sms.js';
 
 describe('normalizePhone', () => {
   it('normalises Iranian mobile formats to 09xxxxxxxxx', () => {
@@ -70,5 +78,24 @@ describe('parseProviderResponse', () => {
     expect(parseProviderResponse(500, {}).sent).toBe(false);
     expect(parseProviderResponse(200, { Value: '0', RetStatus: 1 }).sent).toBe(false);
     expect(parseProviderResponse(200, null).sent).toBe(false);
+  });
+});
+
+
+describe('isWithinSmsWindow', () => {
+  const base = { windowStart: '08:00', windowEnd: '20:00' };
+  it('allows messages inside the window and rejects outside it (Tehran time)', () => {
+    expect(isWithinSmsWindow({ ...base, windowEnabled: true }, new Date('2026-01-01T06:00:00Z'))).toBe(true); // 09:30
+    expect(isWithinSmsWindow({ ...base, windowEnabled: true }, new Date('2026-01-01T17:00:00Z'))).toBe(false); // 20:30
+  });
+
+  it('supports an overnight window', () => {
+    const overnight = { windowEnabled: true, windowStart: '20:00', windowEnd: '08:00' };
+    expect(isWithinSmsWindow(overnight, new Date('2026-01-01T17:30:00Z'))).toBe(true); // 21:00
+    expect(isWithinSmsWindow(overnight, new Date('2026-01-01T08:30:00Z'))).toBe(false); // 12:00
+  });
+
+  it('does not restrict when disabled', () => {
+    expect(isWithinSmsWindow({ ...base, windowEnabled: false }, new Date('2026-01-01T17:00:00Z'))).toBe(true);
   });
 });

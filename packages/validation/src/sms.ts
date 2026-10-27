@@ -29,6 +29,17 @@ export const smsSettingsSchema = z.object({
     .regex(/^\d{1,12}$/, 'شناسه الگو باید عدد باشد.')
     .optional()
     .or(z.literal('')),
+  windowEnabled: z.boolean().default(false),
+  windowStart: z
+    .string()
+    .trim()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'ساعت شروع را به شکل HH:MM وارد کنید.')
+    .default('08:00'),
+  windowEnd: z
+    .string()
+    .trim()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'ساعت پایان را به شکل HH:MM وارد کنید.')
+    .default('20:00'),
 });
 
 export const smsTestSchema = z.object({ to: mobilePhone });

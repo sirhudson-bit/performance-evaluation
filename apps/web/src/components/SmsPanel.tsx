@@ -15,6 +15,9 @@ export interface SmsSettingsView {
   otpEnabled: boolean;
   otpText: string;
   otpPatternId: string;
+  windowEnabled: boolean;
+  windowStart: string;
+  windowEnd: string;
   hasPassword: boolean;
   configured: boolean;
   provider: string;
@@ -63,6 +66,9 @@ export function SmsSettingsForm({ initial }: { initial: SmsSettingsView }) {
   const [otpEnabled, setOtpEnabled] = useState(initial.otpEnabled);
   const [otpText, setOtpText] = useState(initial.otpText);
   const [otpPatternId, setOtpPatternId] = useState(initial.otpPatternId);
+  const [windowEnabled, setWindowEnabled] = useState(Boolean(initial.windowEnabled));
+  const [windowStart, setWindowStart] = useState(initial.windowStart || '08:00');
+  const [windowEnd, setWindowEnd] = useState(initial.windowEnd || '20:00');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'danger'; text: string } | null>(null);
 
@@ -84,6 +90,9 @@ export function SmsSettingsForm({ initial }: { initial: SmsSettingsView }) {
         otpEnabled,
         otpText,
         otpPatternId,
+        windowEnabled,
+        windowStart,
+        windowEnd,
       });
       setSettings(res.settings);
       setPassword('');
@@ -175,6 +184,25 @@ export function SmsSettingsForm({ initial }: { initial: SmsSettingsView }) {
               </div>
               <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                 برای تحویل بهتر کد ورود، استفاده از «الگوی خدماتی» پنل ملی پیامک توصیه می‌شود؛ در این حالت متن الگو در پنل تعیین می‌شود.
+              </p>
+            </div>
+
+            <div className="rounded border border-slate-200 p-4 dark:border-slate-800">
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">بازه زمانی ارسال پیام‌های سامانه</h3>
+              <label className="mt-3 flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={windowEnabled} onChange={(event) => setWindowEnabled(event.target.checked)} />
+                ارسال پیام‌های سامانه فقط در بازه زیر مجاز باشد
+              </label>
+              <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                <Field label="از ساعت" htmlFor="sms-window-start">
+                  <Input id="sms-window-start" type="time" dir="ltr" value={windowStart} onChange={(event) => setWindowStart(event.target.value)} disabled={!windowEnabled} />
+                </Field>
+                <Field label="تا ساعت" htmlFor="sms-window-end">
+                  <Input id="sms-window-end" type="time" dir="ltr" value={windowEnd} onChange={(event) => setWindowEnd(event.target.value)} disabled={!windowEnabled} />
+                </Field>
+              </div>
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                به وقت تهران محاسبه می‌شود؛ بازه شبانه (مثلاً ۲۰:۰۰ تا ۰۸:۰۰) هم پشتیبانی می‌شود. کد ورود یک‌بار مصرف و پیام آزمایشی خارج از این بازه هم ارسال می‌شوند.
               </p>
             </div>
 

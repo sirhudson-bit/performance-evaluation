@@ -32,6 +32,7 @@ export function UserForm({ roles, departments, isSuperAdmin }: { roles: { id: nu
   const { message, busy, run } = useSubmit();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [roleIds, setRoleIds] = useState<number[]>([]);
   const [password, setPassword] = useState('');
@@ -51,6 +52,7 @@ export function UserForm({ roles, departments, isSuperAdmin }: { roles: { id: nu
           const res = await apiClient<{ generatedPassword?: string }>('POST', '/users', {
             name,
             email,
+            phone: phone || undefined,
             roleIds,
             status: 'active',
             departmentId: departmentId ? Number(departmentId) : null,
@@ -59,6 +61,7 @@ export function UserForm({ roles, departments, isSuperAdmin }: { roles: { id: nu
           setGenerated(res.generatedPassword ?? '');
           setName('');
           setEmail('');
+          setPhone('');
           setRoleIds([]);
           setDepartmentId('');
           setPassword('');
@@ -75,6 +78,9 @@ export function UserForm({ roles, departments, isSuperAdmin }: { roles: { id: nu
       ) : null}
       <Field label="نام" htmlFor="u-name" required><Input id="u-name" value={name} onChange={(e) => setName(e.target.value)} required /></Field>
       <Field label="ایمیل" htmlFor="u-email" required><Input id="u-email" type="email" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} required /></Field>
+      <Field label="شماره موبایل" htmlFor="u-phone" hint="اختیاری — برای ورود با رمز یک‌بار مصرف و دریافت پیامک لازم است.">
+        <Input id="u-phone" type="tel" dir="ltr" inputMode="tel" placeholder="09121234567" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" />
+      </Field>
       {isSuperAdmin ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="رمز عبور" htmlFor="u-pass" hint="حداقل ۸ نویسه، شامل حرف و رقم." error={passwordError}>

@@ -5,9 +5,18 @@ import { useRouter } from 'next/navigation';
 import { apiClient, ApiClientError } from '@/lib/client';
 import { Button, Field, Input, Alert } from '@/components/ui';
 import { PasswordInput } from '@/components/PasswordInput';
+import { faDigits } from '@/lib/format';
 import { cn } from '@pe/ui';
 
 type Mode = 'password' | 'otp';
+
+/** mm:ss with Persian digits, e.g. 01:00. */
+function countdownLabel(seconds: number): string {
+  const safe = Math.max(0, seconds);
+  const mm = String(Math.floor(safe / 60)).padStart(2, '0');
+  const ss = String(safe % 60).padStart(2, '0');
+  return faDigits(`${mm}:${ss}`);
+}
 
 export function LoginForm() {
   const router = useRouter();
@@ -24,8 +33,8 @@ export function LoginForm() {
 
   useEffect(() => {
     if (cooldown <= 0) return;
-    const timer = window.setInterval(() => setCooldown((value) => Math.max(0, value - 1)), 1000);
-    return () => window.clearInterval(timer);
+    const timer = window.setTimeout(() => setCooldown((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timer);
   }, [cooldown]);
 
   useEffect(() => {
@@ -170,9 +179,15 @@ export function LoginForm() {
               {loading ? 'در حال بررسی…' : 'ورود با کد'}
             </Button>
             <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
-              <button type="button" className="text-brand-700 hover:underline" onClick={() => void requestCode()} disabled={loading || cooldown > 0}>
-                {cooldown > 0 ? `ارسال دوباره تا ${cooldown} ثانیه` : 'ارسال دوباره کد'}
-              </button>
+              {cooldown > 0 ? (
+                <span className="tabular-nums text-slate-500" aria-live="polite">
+                  ارسال دوباره در {countdownLabel(cooldown)}
+                </span>
+              ) : (
+                <button type="button" className="text-brand-700 hover:underline" onClick={() => void requestCode()} disabled={loading}>
+                  ارسال دوباره کد
+                </button>
+              )}
               <button
                 type="button"
                 className="hover:underline"

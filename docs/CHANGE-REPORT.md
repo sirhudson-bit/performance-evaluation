@@ -606,3 +606,33 @@ width, and the tour/tip overlays fit inside 320 px and 390 px viewports.
 - The panel's `BaseServiceNumber` (pattern) mode expects only the variable value;
   when `bodyId` is configured the API sends the raw code rather than the rendered
   template.
+
+## Session 10 — resend countdown, SMS window, phone at user creation
+
+### What changed
+
+1. **OTP resend countdown.** After a code is requested the login form shows
+   `ارسال دوباره در mm:ss` (Persian digits, updates every second) and only
+   reveals the resend button at zero. The timer uses a single timeout per tick
+   and is announced with `aria-live="polite"`.
+2. **SMS time window.** `/admin/sms` now has an optional daily window
+   (`windowEnabled`, `windowStart`, `windowEnd`, default 08:00–20:00 Tehran).
+   Bulk/system sends outside the window are rejected with a clear message;
+   overnight ranges (e.g. 20:00–08:00) are supported. OTP login and the test
+   button deliberately bypass the window so nobody is locked out at night.
+   The API enforces the window in both the bulk route (fast, clear error) and
+   the shared `sendSms` function (defence in depth).
+3. **Phone at user creation.** `userCreateSchema`, the create-user API and the
+   admin «افزودن کاربر» form now accept an optional mobile number, so OTP and
+   SMS work without a second edit. Edit-user already had the field.
+
+### Verification
+
+- `npm run typecheck` (api + web + worker), `npm run lint`, `npm run build`
+  clean; `npm test` → **36/36** (new window/URL cases).
+- Local mock provider: OTP request still sends outside the window; bulk send
+  outside 08:00–09:00 returned the expected 400 message; countdown measured
+  `۰۰:۵۹` → `۰۰:۵۶` and the resend button stayed hidden.
+- Browser at 320/390 px: `/login`, `/admin/users`, `/admin/sms` have zero
+  horizontal overflow; the phone and time-window controls render.
+- Test phone restored and SMS settings disabled after verification.
