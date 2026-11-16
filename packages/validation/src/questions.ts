@@ -43,3 +43,22 @@ export const questionSchema = z.object({
 });
 
 export const questionUpdateSchema = questionSchema.partial();
+
+/**
+ * One row of a bulk question-bank import.
+ *
+ * `stableKey` is normalised by the preview step (lowercased, non `[a-z0-9_]`
+ * characters replaced with `_`) so a Persian title can be imported without the
+ * operator hand-writing an identifier; the normalised key is shown in the
+ * preview before anything is written.
+ */
+export const questionImportRowSchema = questionSchema.omit({ categoryId: true, condition: true }).extend({
+  categoryName: z.string().trim().max(120).optional(),
+  scoring: z.record(z.any()).default({}),
+});
+
+export const questionImportConfirmSchema = z.object({
+  rows: z.array(questionImportRowSchema).min(1, 'هیچ ردیفی برای ثبت وجود ندارد.').max(500, 'در هر بار حداکثر ۵۰۰ پرسش قابل ثبت است.'),
+  /** Categories named in the file are created when they do not exist yet. */
+  createMissingCategories: z.boolean().default(true),
+});

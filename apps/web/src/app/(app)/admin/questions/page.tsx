@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { apiData, getSession, hasPermission } from '@/lib/api';
 import { PageHeader, Card, CardHeader, CardBody, Table, Td, EmptyState, StatusBadge, Badge } from '@/components/ui';
 import { QuestionForm } from '@/components/AdminForms';
+import { QuestionImportCard } from '@/components/QuestionImportCard';
 
 interface Question { id: number; stableKey: string; title: string; answerType: string; status: string; weight: string; category: { name: string } | null; currentVersion: number }
 
@@ -57,6 +58,20 @@ export default async function AdminQuestionsPage() {
           )}
         </Card>
       </div>
+
+      {hasPermission(user, 'questions.create') ? (
+        <div className="mt-6">
+          <Card>
+            <CardHeader
+              title="افزودن گروهی پرسش‌ها از اکسل"
+              subtitle="قالب شامل دسته‌های همین بانک، نوع پاسخ‌ها و ستون گزینه‌ها است؛ پیش‌نمایش پیش از ثبت"
+            />
+            <CardBody>
+              <QuestionImportCard />
+            </CardBody>
+          </Card>
+        </div>
+      ) : null}
     </>
   );
 }

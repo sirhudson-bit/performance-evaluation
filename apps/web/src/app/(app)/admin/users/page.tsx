@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { apiData, getSession, hasPermission } from '@/lib/api';
 import { PageHeader, Card, CardHeader, CardBody, Table, Td, EmptyState, StatusBadge, Badge } from '@/components/ui';
 import { UserForm, UserRowActions } from '@/components/AdminForms';
+import { UserImportCard } from '@/components/UserImportCard';
 import { Pagination } from '@/components/Pagination';
 import { faDigits } from '@/lib/format';
 
@@ -74,6 +75,20 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           <Pagination page={page} perPage={perPage} total={users?.total ?? 0} basePath="/admin/users" />
         </Card>
       </div>
+
+      {hasPermission(me, 'users.create') ? (
+        <div className="mt-6">
+          <Card>
+            <CardHeader
+              title="افزودن گروهی کاربران از اکسل"
+              subtitle="قالب بر اساس دپارتمان‌ها و نقش‌های همین سازمان ساخته می‌شود؛ پیش‌نمایش پیش از ثبت"
+            />
+            <CardBody>
+              <UserImportCard />
+            </CardBody>
+          </Card>
+        </div>
+      ) : null}
     </>
   );
 }

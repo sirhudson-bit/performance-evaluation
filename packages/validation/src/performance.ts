@@ -8,14 +8,6 @@ export const targetGroupSchema = z.object({
   key: z.string().trim().max(60).optional(),
 });
 
-export const processSchema = z.object({
-  name: z.string().trim().min(2, 'نام فرایند الزامی است.').max(160),
-  description: z.string().trim().max(2000).optional(),
-  evaluationModel: z.enum(['weighted_360', 'manager_only', 'self_and_manager', 'management_by_objectives']).default('weighted_360'),
-  targetGroups: z.array(targetGroupSchema).default([]),
-  status: z.enum(['draft', 'active', 'archived']).default('draft'),
-});
-
 export const processStepSchema = z.object({
   name: z.string().trim().min(2, 'نام مرحله الزامی است.').max(160),
   description: z.string().trim().max(2000).optional(),
@@ -35,6 +27,26 @@ export const processDimensionSchema = z.object({
   ownerUserId: z.coerce.number().int().positive().nullable().optional(),
   sortOrder: z.coerce.number().int().min(0).default(0),
 });
+
+/**
+ * The process wizard creates a process together with its steps and dimensions in
+ * one request, so a half-built process can never be left behind by a dropped
+ * connection. Order/sort order are optional — the API assigns them by index.
+ */
+export const processStepDraftSchema = processStepSchema.extend({ order: z.coerce.number().int().min(0).optional() });
+export const processDimensionDraftSchema = processDimensionSchema.extend({ sortOrder: z.coerce.number().int().min(0).optional() });
+
+export const processSchema = z.object({
+  name: z.string().trim().min(2, 'نام فرایند الزامی است.').max(160),
+  description: z.string().trim().max(2000).optional(),
+  evaluationModel: z.enum(['weighted_360', 'manager_only', 'self_and_manager', 'management_by_objectives']).default('weighted_360'),
+  targetGroups: z.array(targetGroupSchema).default([]),
+  status: z.enum(['draft', 'active', 'archived']).default('draft'),
+  /** Optional structure created in the same transaction (process wizard). */
+  steps: z.array(processStepDraftSchema).max(60).default([]),
+  dimensions: z.array(processDimensionDraftSchema).max(60).default([]),
+});
+
 
 export const cycleStepSchema = z.object({
   name: z.string().trim().min(2, 'نام مرحله الزامی است.').max(160),

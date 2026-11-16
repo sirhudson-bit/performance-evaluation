@@ -49,3 +49,31 @@ export const roleSchema = z.object({
 export const assignRolesSchema = z.object({
   roleIds: z.array(z.coerce.number().int().positive()),
 });
+
+/**
+ * One row of a bulk user import.
+ *
+ * `departmentId` and `roleIds` are already resolved by the preview step (the
+ * template lets the operator type a unit code/name and role keys/names); the
+ * confirm endpoint re-checks that every id belongs to the caller's organization
+ * before writing anything.
+ *
+ * `name` is deliberately looser than `persianName`: an HR file may contain
+ * Latin or mixed-script names, and rejecting those would make the import
+ * unusable for real organizations.
+ */
+export const userImportRowSchema = z.object({
+  rowNumber: z.coerce.number().int().min(1).max(100000).optional(),
+  name: z.string().trim().min(2, 'نام باید حداقل ۲ حرف باشد.').max(80),
+  email,
+  phone: optionalPhone,
+  departmentId: z.coerce.number().int().positive().nullable().optional(),
+  roleIds: z.array(z.coerce.number().int().positive()).default([]),
+  status: z.enum(['active', 'suspended', 'archived']).default('active'),
+  password: password.optional(),
+});
+
+export const userImportConfirmSchema = z.object({
+  rows: z.array(userImportRowSchema).min(1, 'هیچ ردیفی برای ثبت وجود ندارد.').max(300, 'در هر بار حداکثر ۳۰۰ کاربر قابل ثبت است.'),
+});
+

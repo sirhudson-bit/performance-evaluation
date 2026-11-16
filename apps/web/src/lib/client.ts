@@ -52,6 +52,24 @@ export async function apiClient<T = unknown>(
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
+  return parseResponse<T>(res);
+}
+
+/**
+ * Multipart upload (Excel import). Same CSRF + error contract as `apiClient`;
+ * the browser sets the multipart boundary itself, so no content-type header.
+ */
+export async function apiUpload<T = unknown>(path: string, form: FormData): Promise<T> {
+  await ensureCsrf();
+  const headers: Record<string, string> = {};
+  const csrf = readCookie('pe_csrf');
+  if (csrf) headers['x-csrf-token'] = csrf;
+
+  const res = await fetch(`/api/v1${path}`, { method: 'POST', credentials: 'include', headers, body: form });
+  return parseResponse<T>(res);
+}
+
+async function parseResponse<T>(res: Response): Promise<T> {
   const json = (await res.json().catch(() => ({}))) as {
     data?: T;
     error?: { code?: string; message?: string; details?: unknown };

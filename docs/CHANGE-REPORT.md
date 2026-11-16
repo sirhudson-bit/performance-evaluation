@@ -636,3 +636,106 @@ width, and the tour/tip overlays fit inside 320 px and 390 px viewports.
 - Browser at 320/390 px: `/login`, `/admin/users`, `/admin/sms` have zero
   horizontal overflow; the phone and time-window controls render.
 - Test phone restored and SMS settings disabled after verification.
+
+---
+
+## Session 11 — bulk Excel import (users, questions) and a process builder
+
+### 1. Create users in bulk from an Excel template that matches the create-user form
+
+- **Template** — `GET /users/import/template` generates the file **per
+  organization**: the columns are those of «افزودن کاربر» (name, email, mobile,
+  department, roles, status, optional password), the department column has a
+  dropdown built from this tenant's real unit codes/names, the status column a
+  dropdown of فعال/غیرفعال/بایگانی, and a second sheet «راهنما» lists every
+  department (code — name) and every assignable role (key — name) plus an
+  example row. Reference lists live in hidden columns of the data sheet, because
+  Excel rejects a cross-sheet validation range without a named range.
+- **Preview** — `POST /users/import/preview` parses the file and returns valid /
+  invalid rows with the resolved department name and role names. It rejects:
+  duplicate email (in file or already in the organization), invalid email/mobile,
+  an unknown department, an unknown or non-assignable (protected) role, an
+  invalid status, a password that breaks the policy, and a password supplied by
+  anyone who is not the platform super administrator. Nothing is written.
+- **Confirm** — `POST /users/import/confirm` re-checks every id against the
+  caller's organization (the preview is advisory, the confirm is what writes),
+  creates the users with their roles and department in one pass, hashes the
+  passwords in bounded parallel batches, and returns the generated one-time
+  passwords **once** so HR can hand them over; the UI offers a CSV download and
+  audits `users.imported` with created/failed counts (import job row included).
+- **UI** — a card under the users list (visible with `users.create`): download
+  template → upload → preview table → «ثبت» → result + credentials table.
+
+### 2. Add questions in bulk from a template that matches the question bank
+
+- **Template** — `GET /questions/import/template` with: category, stable key,
+  title, question text, guidance, answer type, weight, required, options
+  (`برچسب=امتیاز | …`), score range (`1-10`), respondents, subject type, status.
+  Answer type / respondents / subject / status columns are dropdown-validated,
+  and «راهنما» lists the labels, the option syntax and the existing categories.
+- **Preview** — normalizes the stable key (lowercase, `[a-z0-9_]`) so a Persian
+  title does not need a hand-written identifier, applies the standard option set
+  for `rating_5`/`yes_no` when the options column is empty, parses custom
+  options, and flags duplicate keys and unknown answer types — all before any
+  write. Missing categories are listed explicitly.
+- **Confirm** — creates missing categories (toggleable), then the questions with
+  their options and their first immutable version through the **same**
+  `createQuestionWithOptions` helper the single-question endpoint now uses, so
+  the two paths cannot drift. Audited as `questions.imported`.
+- **UI** — the same staged card on `/admin/questions`.
+
+### 3. Processes redesigned for UX
+
+- `/admin/processes` is now a card grid with KPIs (total / active / drafts /
+  connected cycles), per-process step and dimension counts, weight-sum badge and
+  a direct link — instead of one dense list with inline mini-forms.
+- `/admin/processes/new` is a **four-step wizard**: information (+ three ready
+  presets: 360 standard, manager-only, MBO), steps (add/edit/reorder/delete,
+  owner role, SLA days), dimensions (weight + owner with a live «مجموع وزن‌ها»
+  badge), and a review that shows the whole structure before submitting.
+  Process, steps and dimensions are sent in **one request** (`processSchema`
+  gained optional `steps`/`dimensions`, created in the same transaction), so an
+  interrupted request can never leave a half-built process.
+- `/admin/processes/[id]` is the editor: identity, steps and dimensions with
+  inline edit, up/down reordering (swaps both orders — never a duplicate order),
+  delete per row, target groups (units/roles), activate/archive and delete.
+  Delete is refused with a clear message once a cycle uses the process; that one
+  is archived instead (`DELETE /processes/:id`).
+- `GET /processes/:id` now includes the cycle count; the old
+  `ProcessForms.tsx` component was removed.
+
+### Verification (real runs)
+
+- Templates downloaded from the running API (9.7 KB each), re-opened with
+  ExcelJS: headers, hidden lists, the help sheet (42 rows) and the validation
+  rules are present.
+- Users import over HTTP: preview `۲ معتبر / ۱ نیازمند اصلاح` (the rejected row
+  said «دپارتمان «NO-SUCH-UNIT» در سازمان یافت نشد»), confirm created **2**
+  users; department, both roles and status verified through `GET /users`, and
+  the generated one-time password logs in successfully.
+- Questions import over HTTP: preview `3 valid / 1 invalid` (duplicate stable key
+  «quality»), confirm created **3** questions + **1** category; verified in
+  `GET /questions` (options counts, `v1`).
+- Browser (Chrome, real clicks): upload → preview → confirm through the UI for
+  both imports (users: 2 created + credentials table; questions: 4 created, bank
+  count 13 → 17), and the wizard created a 4-step / 4-dimension, 100 %-weight
+  process, reordered its steps, edited a dimension (badge `۹۵٪` → back to
+  `۱۰۰٪`) and the delete/guard paths work.
+- `npm run typecheck` (api + web + worker), `npm run lint` (0 warnings),
+  `npm test` → **43/43** (7 new spreadsheet-parsing tests), `npm run build`
+  compiles with `/admin/processes/[id]` and `/admin/processes/new`,
+  `node scripts/verify.cjs` → **81/81**.
+- No console errors and `scrollWidth - clientWidth = 0` on `/admin/users`,
+  `/admin/questions`, `/admin/processes`, `/admin/processes/new` and
+  `/admin/processes/70` at 1440 px and 390 px.
+
+### Limits worth knowing
+
+- Passwords typed into the sheet are only accepted from the platform super
+  administrator (same rule as the single create form); everyone else gets
+  generated one-time passwords.
+- Imports cap at 300 users / 500 questions per file. A row is all-or-nothing:
+  an invalid row is skipped and reported, never partially written. Existing
+  users/questions are not updated by an import — a duplicate is reported.
+- Bulk import does not link a user to an existing employee record; that stays an
+  edit on the user page.

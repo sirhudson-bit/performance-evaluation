@@ -171,7 +171,7 @@ connection before enabling it.
 npm run typecheck      # tsc across every workspace
 npm test               # vitest unit tests (scoring engine, …)
 npm run build          # build the API typecheck + the web app
-BASE_URL=http://127.0.0.1:4000 node scripts/verify.cjs   # 34 real HTTP checks
+BASE_URL=http://127.0.0.1:4000 node scripts/verify.cjs   # 81 real HTTP checks
 ```
 
 The verify harness drives a full journey against a running API: login → RBAC
@@ -186,6 +186,30 @@ publish → score → Excel export & download → AI gating → CSRF → 404 sco
 - API modules: `apps/api/src/modules/*`.
 - Data scope: `apps/api/src/middleware/scope.ts`.
 - Legal / privacy pages: `apps/web/src/app/{privacy,terms,cookies}`.
+
+## Bulk Excel import
+
+Two importers share one staged pattern — download the template, upload it, review
+the preview (valid / invalid / duplicate rows), then confirm; nothing is written
+before the confirm step.
+
+| What | Template | Endpoints | UI |
+|---|---|---|---|
+| Users (with department, roles, status) | `GET /users/import/template` — built from this organization's real unit codes and role keys, dropdown-validated | `POST /users/import/preview`, `POST /users/import/confirm` | card on `/admin/users` |
+| Questions (with options, answer type, respondents) | `GET /questions/import/template` — includes the bank's categories and the option syntax | `POST /questions/import/preview`, `POST /questions/import/confirm` | card on `/admin/questions` |
+
+Generated one-time passwords are returned once after the users import (with a CSV
+download); a password typed into the sheet is only accepted from the platform
+super administrator. Row parsing (Persian digits, option syntax, stable keys) is
+unit-tested in `tests/unit/spreadsheet.test.ts`.
+
+## Process builder
+
+`/admin/processes` lists processes as cards; `/admin/processes/new` is a four-step
+wizard (information + presets → steps → dimensions with live weight total →
+review) that creates process, steps and dimensions in one request;
+`/admin/processes/[id]` edits them row by row, sets target groups, and
+activates/archives/deletes (delete only while no cycle uses it).
 
 ## Deployment
 

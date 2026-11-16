@@ -6,7 +6,7 @@ import { recordAudit } from '../../lib/audit.js';
 import { requirePermission, getAuth } from '../../middleware/auth.js';
 import { requireOrganization } from '../../middleware/scope.js';
 import { validateBody } from '../../middleware/validate.js';
-import { createQuestionVersion } from './service.js';
+import { createQuestionVersion, createQuestionWithOptions } from './service.js';
 
 export const questionsRouter = Router();
 
@@ -91,9 +91,9 @@ questionsRouter.post(
     const dup = await db.question.findFirst({ where: { organizationId: orgId, stableKey: body.stableKey } });
     if (dup) throw conflict('پرسشی با این شناسه پایدار وجود دارد.', [{ path: 'stableKey', message: 'شناسه تکراری است.' }]);
 
-    const question = await db.question.create({
-      data: {
-        organizationId: orgId,
+    const question = await createQuestionWithOptions(
+      orgId,
+      {
         stableKey: body.stableKey,
         categoryId: body.categoryId ?? null,
         title: body.title,
@@ -105,28 +105,14 @@ questionsRouter.post(
         required: body.required,
         weight: body.weight,
         scoring: body.scoring,
-        condition: body.condition ?? undefined,
+        condition: body.condition ?? null,
         status: body.status,
         sortOrder: body.sortOrder,
-        currentVersion: 1,
+        options: body.options as { label: string; value: string; score?: number | null; isNotApplicable: boolean; sortOrder: number }[],
       },
-    });
+      auth.id,
+    );
 
-    if (body.options.length > 0) {
-      const optionRows = body.options as { label: string; value: string; score?: number | null; isNotApplicable: boolean; sortOrder: number }[];
-      await db.questionOption.createMany({
-        data: optionRows.map((o) => ({
-          questionId: question.id,
-          label: o.label,
-          value: o.value,
-          score: o.score ?? null,
-          isNotApplicable: o.isNotApplicable,
-          sortOrder: o.sortOrder,
-        })),
-      });
-    }
-
-    await createQuestionVersion(question.id, 1, auth.id);
     await recordAudit({ organizationId: orgId, actorUserId: auth.id, action: 'question.created', entityType: 'question', entityId: question.id, after: { stableKey: body.stableKey } }, req);
     sendData(res, { id: question.id, version: 1 }, 201);
   }),

@@ -37,7 +37,15 @@ processesRouter.post(
   asyncHandler(async (req, res) => {
     const auth = getAuth(req);
     const orgId = requireOrganization(auth);
-    const body = req.body as { name: string; description?: string; evaluationModel: string; targetGroups: unknown[]; status: string };
+    const body = req.body as {
+      name: string;
+      description?: string;
+      evaluationModel: string;
+      targetGroups: unknown[];
+      status: string;
+      steps?: { name: string; description?: string; order?: number; ownerType?: string; ownerRoleKey?: string; ownerUserId?: number | null; ownerUnitId?: number | null; slaDays?: number | null }[];
+      dimensions?: { name: string; description?: string; weight?: number; ownerRoleKey?: string; ownerUserId?: number | null; sortOrder?: number }[];
+    };
 
     const latest = await db.performanceProcess.findFirst({ where: { organizationId: orgId, name: body.name }, orderBy: { version: 'desc' } });
     if (latest) throw conflict('فرایندی با این نام از قبل وجود دارد؛ برای تغییر، نسخه جدید بسازید.');
@@ -51,9 +59,37 @@ processesRouter.post(
         targetGroups: body.targetGroups as object[],
         status: body.status,
         createdBy: auth.id,
+        // The wizard sends the whole structure at once, so a process can never
+        // be created half-built by an interrupted request.
+        steps: body.steps?.length
+          ? {
+              create: body.steps.map((s, index) => ({
+                name: s.name,
+                description: s.description ?? null,
+                order: s.order ?? index,
+                ownerType: s.ownerType ?? 'role',
+                ownerRoleKey: s.ownerRoleKey ?? null,
+                ownerUserId: s.ownerUserId ?? null,
+                ownerUnitId: s.ownerUnitId ?? null,
+                slaDays: s.slaDays ?? null,
+              })),
+            }
+          : undefined,
+        dimensions: body.dimensions?.length
+          ? {
+              create: body.dimensions.map((d, index) => ({
+                name: d.name,
+                description: d.description ?? null,
+                weight: d.weight ?? 0,
+                ownerRoleKey: d.ownerRoleKey ?? null,
+                ownerUserId: d.ownerUserId ?? null,
+                sortOrder: d.sortOrder ?? index,
+              })),
+            }
+          : undefined,
       },
     });
-    await recordAudit({ organizationId: orgId, actorUserId: auth.id, action: 'process.created', entityType: 'performance_process', entityId: row.id }, req);
+    await recordAudit({ organizationId: orgId, actorUserId: auth.id, action: 'process.created', entityType: 'performance_process', entityId: row.id, after: { steps: body.steps?.length ?? 0, dimensions: body.dimensions?.length ?? 0 } }, req);
     sendData(res, { id: row.id }, 201);
   }),
 );
@@ -67,7 +103,11 @@ processesRouter.get(
     await loadProcess(orgId, Number(req.params.id));
     const process = await db.performanceProcess.findUniqueOrThrow({
       where: { id: Number(req.params.id) },
-      include: { steps: { orderBy: { order: 'asc' } }, dimensions: { orderBy: { sortOrder: 'asc' } } },
+      include: {
+        steps: { orderBy: { order: 'asc' } },
+        dimensions: { orderBy: { sortOrder: 'asc' } },
+        _count: { select: { cycles: true } },
+      },
     });
     sendData(res, { process });
   }),
@@ -244,6 +284,27 @@ processesRouter.post(
     await loadProcess(orgId, id);
     await db.performanceProcess.update({ where: { id }, data: { status: 'archived' } });
     await recordAudit({ organizationId: orgId, actorUserId: auth.id, action: 'process.archived', entityType: 'performance_process', entityId: id }, req);
+    sendData(res, { ok: true });
+  }),
+);
+
+/**
+ * Delete is only allowed while no cycle uses the process. A process that has
+ * been used to run an evaluation is history and is archived instead — deleting
+ * it would orphan cycle steps and their due dates.
+ */
+processesRouter.delete(
+  '/:id',
+  requirePermission('processes.manage'),
+  asyncHandler(async (req, res) => {
+    const auth = getAuth(req);
+    const orgId = requireOrganization(auth);
+    const id = Number(req.params.id);
+    await loadProcess(orgId, id);
+    const cycleCount = await db.evaluationCycle.count({ where: { processId: id } });
+    if (cycleCount > 0) throw conflict('این فرایند در دوره‌های ارزیابی استفاده شده است؛ به‌جای حذف، آن را بایگانی کنید.');
+    await db.performanceProcess.delete({ where: { id } });
+    await recordAudit({ organizationId: orgId, actorUserId: auth.id, action: 'process.deleted', entityType: 'performance_process', entityId: id }, req);
     sendData(res, { ok: true });
   }),
 );
