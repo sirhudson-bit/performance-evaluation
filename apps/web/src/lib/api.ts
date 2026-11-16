@@ -56,7 +56,28 @@ export interface SessionUser {
 
 /** The current user, deduped per request (the shell and every page ask for it). */
 export const getSession = cache(async function getSession(): Promise<SessionUser | null> {
-  return apiData<SessionUser>('/auth/me');
+  // `/auth/me` returns `{ user, roles, permissions, department, employee,
+  // organization }`. Older clients expected a flat session object, which made
+  // `name` undefined and rendered an empty greeting/avatar. Accept both shapes
+  // and normalise once here.
+  type Payload = SessionUser & {
+    user?: Pick<SessionUser, 'id' | 'name' | 'email' | 'themePreference'> & {
+      roles?: SessionUser['roles'];
+    };
+  };
+  const data = await apiData<Payload>('/auth/me');
+  if (!data) return null;
+  if (data.user) {
+    return {
+      ...data.user,
+      roles: data.roles ?? data.user.roles ?? [],
+      permissions: data.permissions ?? [],
+      department: data.department ?? null,
+      employee: data.employee ?? null,
+      organization: data.organization ?? null,
+    };
+  }
+  return data;
 });
 
 export function hasPermission(user: SessionUser | null, permission: string): boolean {

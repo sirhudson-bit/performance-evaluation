@@ -739,3 +739,25 @@ width, and the tour/tip overlays fit inside 320 px and 390 px viewports.
   users/questions are not updated by an import — a duplicate is reported.
 - Bulk import does not link a user to an existing employee record; that stays an
   edit on the user page.
+
+## UI review and refresh
+
+**Audit.** The first render of the app had five visible design defects: the greeting and avatar were blank because `/auth/me` returns `{ user, ... }` while the web client cast the whole payload to `SessionUser`; the create forms occupied the first screen of `/admin/users` and `/admin/questions` and pushed the tables below the fold; the row-actions column was four wide buttons; the onboarding modal and the auto-opening tip card covered forms; and the dialogs were pushed off-centre by the `fadeIn` animation's `transform`.
+
+**What changed.**
+- `apps/web/src/lib/api.ts` normalises the nested `/auth/me` payload, so `name`, avatar initials and the greeting now render.
+- `apps/web/src/components/ui.tsx` is a shadcn-style primitive set: CVA-like button variants/sizes, elevated cards, pill badges, 44 px inputs, striped table headers, icon empty states and KPI tiles with icon slots.
+- New ready components built on Radix: `components/ui/dialog.tsx` and `components/ui/dropdown-menu.tsx`; the mobile navigation is a focus-trapped `Dialog` sheet, and row actions live in a `DropdownMenu`.
+- `/admin/users` and `/admin/questions` now show the table first and open their create forms in dialogs (`AddUserDialog`, `AddQuestionDialog`). The user form keeps its submit button visible while the field area scrolls.
+- The dashboard has a brand hero, KPI icons, an actionable empty state and a latest-score tile instead of a duplicated completion percentage.
+- The login screen is a two-column brand/form layout on desktop and a single card on mobile; the legal text/links are legible.
+- `FloatingTips` is now a collapsed «نکته» chip; the onboarding tour no longer auto-opens on every first visit (it remains available from `/help`).
+- Tables keep their horizontal scroll on desktop, and the users/questions tables switch to readable cards below `md`.
+
+**Verification.**
+- `npm run typecheck`, `npm run lint`, `npm test` (43/43), `npm run build` — clean.
+- Real-browser checks: dashboard/login/users at 1440; 390/320 `scrollWidth - clientWidth = 0` on dashboard, evaluations, reports, results, team, tickets, users, questions, settings, SMS, processes, help.
+- Dialog geometry measured at 576 × 710 px, centred inside a 1440 × 900 viewport, with the submit button inside the viewport; mobile sidebar measured 320 px wide at a 390 px viewport with no page overflow.
+- Login and user creation dialog were exercised against the production build; the test browser session was used only for these checks.
+
+**Still deliberate:** the long sidebar is grouped but not collapsed per section; the app has no global search/notification centre yet.

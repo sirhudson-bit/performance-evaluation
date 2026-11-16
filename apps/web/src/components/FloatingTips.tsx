@@ -4,8 +4,11 @@ import { useEffect, useState } from 'react';
 import { Lightbulb, X } from 'lucide-react';
 
 /**
- * Floating reminders / tips shown inside the app. Dismissible, rotating, and
- * persisted per browser so a dismissed tip does not reappear.
+ * Small, user-invoked help chip.
+ *
+ * Earlier this component auto-opened a fixed card 2.5 seconds after login and
+ * covered form controls at the bottom of the page. It now stays collapsed as a
+ * compact pill; the rotating tips are only shown after the user asks for them.
  */
 const TIPS = [
   'برای دیدن راهنمای گام‌به‌گام هر بخش، از صفحه «راهنما» تور آموزشی را اجرا کنید.',
@@ -19,27 +22,31 @@ const TIPS = [
 const STORAGE_KEY = 'pe_tips_dismissed';
 
 export function FloatingTips() {
-  const [visible, setVisible] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
+    setMounted(true);
     try {
-      if (localStorage.getItem(STORAGE_KEY) === '1') return;
+      setHidden(localStorage.getItem(STORAGE_KEY) === '1');
     } catch {
       /* ignore */
     }
-    const timer = setTimeout(() => setVisible(true), 2500);
-    const rotate = setInterval(() => setIndex((i) => (i + 1) % TIPS.length), 12000);
-    return () => {
-      clearTimeout(timer);
-      clearInterval(rotate);
-    };
   }, []);
 
-  if (!visible) return null;
+  useEffect(() => {
+    if (!open) return;
+    const rotate = setInterval(() => setIndex((i) => (i + 1) % TIPS.length), 12000);
+    return () => clearInterval(rotate);
+  }, [open]);
+
+  if (!mounted || hidden) return null;
 
   function dismiss() {
-    setVisible(false);
+    setOpen(false);
+    setHidden(true);
     try {
       localStorage.setItem(STORAGE_KEY, '1');
     } catch {
@@ -48,14 +55,30 @@ export function FloatingTips() {
   }
 
   return (
-    <div className="fixed inset-x-3 bottom-4 z-40 sm:inset-x-auto sm:left-4 sm:max-w-xs">
-      <div className="flex items-start gap-2 rounded border border-brand-200 bg-white p-3 shadow-card dark:border-brand-900 dark:bg-slate-900" role="status">
-        <Lightbulb aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-brand-600 dark:text-brand-300" />
-        <p className="text-xs leading-6 text-slate-700 dark:text-slate-200">{TIPS[index]}</p>
-        <button onClick={dismiss} aria-label="بستن راهنما" className="text-slate-400 hover:text-slate-600">
-          <X aria-hidden className="h-4 w-4" />
+    <div className="fixed bottom-4 left-4 z-40 sm:bottom-5 sm:left-5">
+      {open ? (
+        <div className="w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xl dark:border-slate-700 dark:bg-slate-900" role="status">
+          <div className="flex items-start gap-2.5">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300">
+              <Lightbulb aria-hidden className="h-4 w-4" />
+            </span>
+            <p className="flex-1 text-xs leading-6 text-slate-700 dark:text-slate-200">{TIPS[index]}</p>
+            <button onClick={dismiss} aria-label="بستن راهنما" className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800">
+              <X aria-hidden className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-expanded={open}
+          className="flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-600 shadow-lg transition hover:-translate-y-0.5 hover:border-brand-200 hover:text-brand-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-brand-800"
+        >
+          <Lightbulb aria-hidden className="h-4 w-4 text-amber-500" />
+          نکته
         </button>
-      </div>
+      )}
     </div>
   );
 }

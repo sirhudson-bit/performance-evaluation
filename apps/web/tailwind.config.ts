@@ -33,16 +33,17 @@ const config: Config = {
         canvas: '#f8fafc',
       },
       borderRadius: {
-        sm: '15px',
-        DEFAULT: '15px',
-        md: '15px',
-        lg: '15px',
-        xl: '15px',
-        '2xl': '15px',
-        '3xl': '15px',
+        sm: '10px',
+        DEFAULT: '12px',
+        md: '12px',
+        lg: '14px',
+        xl: '18px',
+        '2xl': '22px',
+        '3xl': '28px',
       },
       boxShadow: {
-        card: '0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06)',
+        card: '0 1px 2px 0 rgb(15 23 42 / 0.04), 0 10px 28px -20px rgb(15 23 42 / 0.18)',
+        float: '0 20px 60px -24px rgb(15 23 42 / 0.35)',
       },
       keyframes: {
         fadeIn: {
@@ -53,10 +54,15 @@ const config: Config = {
           from: { opacity: '0', transform: 'translateY(12px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
+        opacityIn: {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
       },
       animation: {
         'fade-in': 'fadeIn 0.25s ease-out both',
         'slide-up': 'slideUp 0.3s ease-out both',
+        'opacity-in': 'opacityIn 0.18s ease-out both',
       },
     },
   },

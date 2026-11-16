@@ -1,6 +1,5 @@
-import Link from 'next/link';
 import { apiData } from '@/lib/api';
-import { PageHeader, Card, CardHeader, CardBody, Alert } from '@/components/ui';
+import { PageHeader, Card, CardHeader, CardBody, Alert, LinkButton } from '@/components/ui';
 import { SettingsForm } from '@/components/AdminForms';
 
 export default async function AdminSettingsPage() {
@@ -19,9 +18,9 @@ export default async function AdminSettingsPage() {
           title="اتصال پنل پیامکی (ملی پیامک)"
           subtitle="ارسال پیامک سامانه، ورود با رمز یک‌بار مصرف و ارسال پیام به مدیران و کارکنان"
           actions={
-            <Link href="/admin/sms" className="rounded bg-brand-700 px-3 py-2 text-sm text-white hover:bg-brand-800">
+            <LinkButton href="/admin/sms" size="sm">
               تنظیم اتصال و ارسال پیام
-            </Link>
+            </LinkButton>
           }
         />
         <CardBody className="text-sm text-slate-600 dark:text-slate-300">

@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { apiData, getSession, hasPermission } from '@/lib/api';
 import { PageHeader, Card, CardHeader, CardBody, Table, Td, EmptyState, StatusBadge, Badge } from '@/components/ui';
-import { UserForm, UserRowActions } from '@/components/AdminForms';
+import { UserRowActions } from '@/components/AdminForms';
+import { AddUserDialog } from '@/components/AddUserDialog';
 import { UserImportCard } from '@/components/UserImportCard';
 import { Pagination } from '@/components/Pagination';
 import { faDigits } from '@/lib/format';
@@ -14,6 +15,11 @@ interface UserItem {
 }
 interface RoleItem { id: number; name: string; key: string; isProtected: boolean }
 interface Unit { id: number; name: string }
+
+function initials(name?: string | null): string {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map((p) => p[0]).join('') || '؟';
+}
 
 export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<{ page?: string; perPage?: string }> }) {
   const sp = await searchParams;
@@ -33,48 +39,101 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <PageHeader title="کاربران" description="مدیریت حساب‌ها، دپارتمان، نقش‌ها و وضعیت" />
-      <div className="grid gap-6 xl:grid-cols-3">
-        <Card className="xl:col-span-1">
-          <CardHeader title="افزودن کاربر" />
-          <CardBody>
-            <UserForm roles={roleList} departments={departmentList} isSuperAdmin={isSuperAdmin} />
-          </CardBody>
-        </Card>
-        <Card className="xl:col-span-2">
-          <CardHeader title="فهرست کاربران" subtitle={`${faDigits(users?.total ?? 0)} کاربر`} />
-          {!users || users.items.length === 0 ? (
-            <EmptyState title="کاربری یافت نشد" />
-          ) : (
-            <Table head={['نام', 'ایمیل', 'دپارتمان', 'نقش‌ها', 'وضعیت', '']}>
-              {users.items.map((u) => (
-                <tr key={u.id}>
-                  <Td>{u.name}</Td>
-                  <Td dir="ltr" className="text-xs">{u.email}</Td>
-                  <Td>{u.department?.name ?? '—'}</Td>
-                  <Td>
-                    <div className="flex flex-wrap gap-1">
-                      {u.roles.map((r) => <Badge key={r.role.id} tone="info">{r.role.name}</Badge>)}
+      <PageHeader
+        title="کاربران"
+        description="مدیریت حساب‌ها، دپارتمان، نقش‌ها و وضعیت"
+        actions={
+          hasPermission(me, 'users.create') ? (
+            <AddUserDialog roles={roleList} departments={departmentList} isSuperAdmin={isSuperAdmin} />
+          ) : null
+        }
+      />
+
+      <Card>
+        <CardHeader title="فهرست کاربران" subtitle={`${faDigits(users?.total ?? 0)} کاربر در سازمان`} />
+        {!users || users.items.length === 0 ? (
+          <EmptyState title="کاربری یافت نشد" description="با دکمه «افزودن کاربر» اولین حساب را بسازید." />
+        ) : (
+          <>
+          <div className="hidden md:block">
+          <Table head={['کاربر', 'دپارتمان', 'نقش‌ها', 'وضعیت', 'عملیات']}>
+            {users.items.map((u) => (
+              <tr key={u.id} className="transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+                <Td>
+                  <div className="flex min-w-[13rem] items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-xs font-bold text-brand-700 dark:bg-brand-950/60 dark:text-brand-300">
+                      {initials(u.name)}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-semibold text-slate-900 dark:text-slate-100">{u.name}</p>
+                      <p dir="ltr" className="truncate text-right text-[11px] text-slate-500 dark:text-slate-400">{u.email}</p>
+                      {u.employee ? <p className="mt-0.5 text-[10px] text-slate-400">کد پرسنلی {faDigits(u.employee.employeeNo)}</p> : null}
                     </div>
-                  </Td>
-                  <Td><StatusBadge group="userStatus" value={u.status} /></Td>
-                  <Td>
-                    <div className="flex flex-col gap-1">
-                      <UserRowActions user={u} roles={roleList} departments={departmentList} isSelf={u.id === me?.id} isSuperAdmin={isSuperAdmin} />
-                      {canReport && u.employee ? (
-                        <Link href={`/reports/employees/${u.employee.id}`} className="text-xs text-brand-700 hover:underline dark:text-brand-300">
-                          گزارش عملکرد
-                        </Link>
-                      ) : null}
+                  </div>
+                </Td>
+                <Td className="whitespace-nowrap text-xs">{u.department?.name ?? '—'}</Td>
+                <Td>
+                  <div className="flex max-w-[15rem] flex-wrap gap-1">
+                    {u.roles.length > 0
+                      ? u.roles.map((r) => <Badge key={r.role.id} tone="info" dot={false}>{r.role.name}</Badge>)
+                      : <span className="text-xs text-slate-400">بدون نقش</span>}
+                  </div>
+                </Td>
+                <Td className="whitespace-nowrap"><StatusBadge group="userStatus" value={u.status} /></Td>
+                <Td>
+                  <div className="flex flex-col gap-1">
+                    <UserRowActions user={u} roles={roleList} departments={departmentList} isSelf={u.id === me?.id} isSuperAdmin={isSuperAdmin} />
+                    {canReport && u.employee ? (
+                      <Link href={`/reports/employees/${u.employee.id}`} className="text-xs font-medium text-brand-700 hover:underline dark:text-brand-300">
+                        گزارش عملکرد
+                      </Link>
+                    ) : null}
+                  </div>
+                </Td>
+              </tr>
+            ))}
+          </Table>
+          </div>
+
+          <div className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
+            {users.items.map((u) => (
+              <div key={u.id} className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-xs font-bold text-brand-700 dark:bg-brand-950/60 dark:text-brand-300">
+                      {initials(u.name)}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-semibold text-slate-900 dark:text-slate-100">{u.name}</p>
+                      <p dir="ltr" className="truncate text-right text-[11px] text-slate-500 dark:text-slate-400">{u.email}</p>
                     </div>
-                  </Td>
-                </tr>
-              ))}
-            </Table>
-          )}
-          <Pagination page={page} perPage={perPage} total={users?.total ?? 0} basePath="/admin/users" />
-        </Card>
-      </div>
+                  </div>
+                  <StatusBadge group="userStatus" value={u.status} />
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                  <span>{u.department?.name ?? 'بدون دپارتمان'}</span>
+                  {u.employee ? <span>· کد {faDigits(u.employee.employeeNo)}</span> : null}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {u.roles.length > 0
+                    ? u.roles.map((r) => <Badge key={r.role.id} tone="info" dot={false}>{r.role.name}</Badge>)
+                    : <span className="text-xs text-slate-400">بدون نقش</span>}
+                </div>
+                <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                  <UserRowActions user={u} roles={roleList} departments={departmentList} isSelf={u.id === me?.id} isSuperAdmin={isSuperAdmin} />
+                  {canReport && u.employee ? (
+                    <Link href={`/reports/employees/${u.employee.id}`} className="text-xs font-medium text-brand-700 hover:underline dark:text-brand-300">
+                      گزارش عملکرد
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+          </>
+        )}
+        <Pagination page={page} perPage={perPage} total={users?.total ?? 0} basePath="/admin/users" />
+      </Card>
 
       {hasPermission(me, 'users.create') ? (
         <div className="mt-6">

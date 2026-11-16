@@ -21,9 +21,19 @@ html {
 
 body {
   @apply bg-canvas text-slate-800 antialiased;
+  background-image:
+    radial-gradient(circle at 15% 0%, rgb(37 99 235 / 0.055), transparent 28rem),
+    radial-gradient(circle at 90% 15%, rgb(14 165 233 / 0.045), transparent 24rem);
+  background-attachment: fixed;
 }
 html.dark body {
   @apply bg-slate-950 text-slate-100;
+  background-image:
+    radial-gradient(circle at 10% 0%, rgb(37 99 235 / 0.12), transparent 30rem),
+    radial-gradient(circle at 95% 10%, rgb(14 165 233 / 0.06), transparent 24rem);
+}
+::selection {
+  background: rgb(37 99 235 / 0.18);
 }
 
 /*

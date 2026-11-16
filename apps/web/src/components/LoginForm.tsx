@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { KeyRound, Smartphone } from 'lucide-react';
 import { apiClient, ApiClientError } from '@/lib/client';
 import { Button, Field, Input, Alert } from '@/components/ui';
 import { PasswordInput } from '@/components/PasswordInput';
@@ -100,24 +101,26 @@ export function LoginForm() {
 
   const tabClass = (active: boolean) =>
     cn(
-      'flex-1 rounded px-3 py-2 text-sm font-medium transition-colors',
+      'flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all',
       active
-        ? 'bg-brand-700 text-white shadow-sm'
-        : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800',
+        ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:text-brand-200 dark:ring-slate-700'
+        : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
     );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div
         role="tablist"
         aria-label="روش ورود"
-        className="flex gap-1 rounded border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800/60"
+        className="flex gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 dark:border-slate-700 dark:bg-slate-800/60"
       >
         <button type="button" role="tab" aria-selected={mode === 'password'} className={tabClass(mode === 'password')} onClick={() => switchMode('password')}>
+          <KeyRound aria-hidden className="h-3.5 w-3.5" />
           رمز عبور
         </button>
         <button type="button" role="tab" aria-selected={mode === 'otp'} className={tabClass(mode === 'otp')} onClick={() => switchMode('otp')}>
-          رمز یک‌بار مصرف
+          <Smartphone aria-hidden className="h-3.5 w-3.5" />
+          کد یک‌بار مصرف
         </button>
       </div>
 
@@ -133,6 +136,7 @@ export function LoginForm() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
+            placeholder="name@company.com"
             required
             disabled={mode === 'otp' && codeSent}
           />
@@ -146,15 +150,16 @@ export function LoginForm() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 autoComplete="current-password"
+                placeholder="••••••••"
                 required
               />
             </Field>
-            <Button type="submit" disabled={loading} className="w-full">
+            <Button type="submit" size="lg" disabled={loading} className="w-full">
               {loading ? 'در حال ورود…' : 'ورود'}
             </Button>
             <p className="text-center text-xs text-slate-500">
               رمز عبور خود را فراموش کرده‌اید؟{' '}
-              <a href="/forgot-password" className="text-brand-700 hover:underline">
+              <a href="/forgot-password" className="font-semibold text-brand-700 hover:underline dark:text-brand-300">
                 بازیابی رمز
               </a>
             </p>
@@ -175,7 +180,7 @@ export function LoginForm() {
                 required
               />
             </Field>
-            <Button type="submit" disabled={loading || code.length !== 6} className="w-full">
+            <Button type="submit" size="lg" disabled={loading || code.length !== 6} className="w-full">
               {loading ? 'در حال بررسی…' : 'ورود با کد'}
             </Button>
             <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
@@ -184,7 +189,7 @@ export function LoginForm() {
                   ارسال دوباره در {countdownLabel(cooldown)}
                 </span>
               ) : (
-                <button type="button" className="text-brand-700 hover:underline" onClick={() => void requestCode()} disabled={loading}>
+                <button type="button" className="font-semibold text-brand-700 hover:underline dark:text-brand-300" onClick={() => void requestCode()} disabled={loading}>
                   ارسال دوباره کد
                 </button>
               )}
@@ -208,12 +213,12 @@ export function LoginForm() {
             <p className="text-xs leading-6 text-slate-500 dark:text-slate-400">
               کد یک‌بار مصرف به شماره همراهی که در حساب شما ثبت شده ارسال می‌شود. اگر شماره‌ای ثبت نشده باشد، از رمز عبور استفاده کنید.
             </p>
-            <Button type="submit" disabled={loading || !email} className="w-full">
+            <Button type="submit" size="lg" disabled={loading || !email} className="w-full">
               {loading ? 'در حال ارسال…' : 'ارسال کد ورود'}
             </Button>
             <p className="text-center text-xs text-slate-500">
               ورود با رمز عبور را ترجیح می‌دهید؟{' '}
-              <button type="button" className="text-brand-700 hover:underline" onClick={() => switchMode('password')}>
+              <button type="button" className="font-semibold text-brand-700 hover:underline dark:text-brand-300" onClick={() => switchMode('password')}>
                 بازگشت
               </button>
             </p>

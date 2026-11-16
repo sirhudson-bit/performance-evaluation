@@ -1,6 +1,6 @@
 'use client';
 
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, LabelList } from 'recharts';
 import { Card, CardHeader, CardBody, EmptyState } from '@/components/ui';
 import { faDigits, formatScore } from '@/lib/format';
 
@@ -47,7 +47,9 @@ function GroupChart({ title, data, color }: { title: string; data: GroupAverage[
                 <XAxis type="number" domain={[0, 100]} tick={{ fill: AXIS, fontSize: 12 }} tickFormatter={(v: number) => faDigits(v)} />
                 <YAxis type="category" dataKey="name" width={120} tick={{ fill: AXIS, fontSize: 11 }} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: '#e2e8f0' }} formatter={(v: number) => [formatScore(v), 'میانگین']} />
-                <Bar dataKey="average" fill={color} radius={[0, 8, 8, 0]} maxBarSize={22} />
+                <Bar dataKey="average" fill={color} radius={[0, 8, 8, 0]} maxBarSize={22}>
+                  <LabelList dataKey="average" position="right" formatter={(v: number) => formatScore(v)} style={{ fill: AXIS, fontSize: 11, fontWeight: 600 }} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -82,7 +84,9 @@ export function ReportsCharts({ data }: { data: Analytics }) {
                 <XAxis dataKey="range" tick={{ fill: AXIS, fontSize: 12 }} axisLine={{ stroke: AXIS, strokeOpacity: 0.4 }} tickLine={false} />
                 <YAxis allowDecimals={false} tick={{ fill: AXIS, fontSize: 12 }} axisLine={{ stroke: AXIS, strokeOpacity: 0.4 }} tickLine={false} tickFormatter={(v: number) => faDigits(v)} />
                 <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: '#e2e8f0' }} formatter={(v: number) => [faDigits(v), 'تعداد']} />
-                <Bar dataKey="count" fill="#2563eb" radius={[8, 8, 0, 0]} maxBarSize={64} />
+                <Bar dataKey="count" fill="#2563eb" radius={[8, 8, 0, 0]} maxBarSize={64}>
+                  <LabelList dataKey="count" position="top" formatter={(v: number) => faDigits(v)} style={{ fill: AXIS, fontSize: 11, fontWeight: 600 }} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -102,6 +106,9 @@ export function ReportsCharts({ data }: { data: Analytics }) {
                 </Pie>
                 <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: '#e2e8f0' }} formatter={(v: number) => [faDigits(v), 'تعداد']} />
                 <Legend wrapperStyle={{ fontSize: 12, color: AXIS, paddingTop: 8 }} formatter={(value: string) => <span style={{ color: AXIS }}>{value}</span>} />
+                <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" fill="#0f172a" fontSize="22" fontWeight="800" className="fill-slate-900 dark:fill-slate-100">
+                  {faDigits(totalAssignments)}
+                </text>
               </PieChart>
             </ResponsiveContainer>
           </div>

@@ -4,6 +4,8 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient, ApiClientError } from '@/lib/client';
 import { Button, Field, Input, Textarea, Select, Alert } from '@/components/ui';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { MoreHorizontal, Pencil, KeyRound, Mail, Trash2 } from 'lucide-react';
 import { PasswordInput } from '@/components/PasswordInput';
 import { password as passwordSchema } from '@pe/validation';
 import { JalaliDateInput } from '@/components/JalaliDateInput';
@@ -28,7 +30,7 @@ function useSubmit() {
   return { message, busy, run };
 }
 
-export function UserForm({ roles, departments, isSuperAdmin }: { roles: { id: number; name: string; isProtected: boolean }[]; departments: { id: number; name: string }[]; isSuperAdmin: boolean }) {
+export function UserForm({ roles, departments, isSuperAdmin, onDone }: { roles: { id: number; name: string; isProtected: boolean }[]; departments: { id: number; name: string }[]; isSuperAdmin: boolean; onDone?: () => void }) {
   const { message, busy, run } = useSubmit();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -44,7 +46,7 @@ export function UserForm({ roles, departments, isSuperAdmin }: { roles: { id: nu
 
   return (
     <form
-      className="space-y-4"
+      className="flex max-h-[62vh] flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault();
         if (mismatch || passwordError) return;
@@ -58,7 +60,8 @@ export function UserForm({ roles, departments, isSuperAdmin }: { roles: { id: nu
             departmentId: departmentId ? Number(departmentId) : null,
             ...(isSuperAdmin && password ? { password } : {}),
           });
-          setGenerated(res.generatedPassword ?? '');
+          const generatedPassword = res.generatedPassword ?? '';
+          setGenerated(generatedPassword);
           setName('');
           setEmail('');
           setPhone('');
@@ -66,6 +69,7 @@ export function UserForm({ roles, departments, isSuperAdmin }: { roles: { id: nu
           setDepartmentId('');
           setPassword('');
           setConfirm('');
+          if (!generatedPassword) onDone?.();
         }, 'کاربر ایجاد شد.');
       }}
     >
@@ -76,43 +80,49 @@ export function UserForm({ roles, departments, isSuperAdmin }: { roles: { id: nu
           <span dir="ltr" className="break-all font-mono">{generated}</span>
         </Alert>
       ) : null}
-      <Field label="نام" htmlFor="u-name" required><Input id="u-name" value={name} onChange={(e) => setName(e.target.value)} required /></Field>
-      <Field label="ایمیل" htmlFor="u-email" required><Input id="u-email" type="email" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} required /></Field>
-      <Field label="شماره موبایل" htmlFor="u-phone" hint="اختیاری — برای ورود با رمز یک‌بار مصرف و دریافت پیامک لازم است.">
-        <Input id="u-phone" type="tel" dir="ltr" inputMode="tel" placeholder="09121234567" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" />
-      </Field>
-      {isSuperAdmin ? (
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pe-1">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="رمز عبور" htmlFor="u-pass" hint="حداقل ۸ نویسه، شامل حرف و رقم." error={passwordError}>
-            <PasswordInput id="u-pass" dir="ltr" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </Field>
-          <Field label="تکرار رمز عبور" htmlFor="u-pass2" error={mismatch ? 'رمزها یکسان نیستند.' : undefined}>
-            <PasswordInput id="u-pass2" dir="ltr" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-          </Field>
+          <Field label="نام" htmlFor="u-name" required><Input id="u-name" value={name} onChange={(e) => setName(e.target.value)} required /></Field>
+          <Field label="ایمیل" htmlFor="u-email" required><Input id="u-email" type="email" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} required /></Field>
         </div>
-      ) : null}
-      <Field label="دپارتمان / واحد کاری" htmlFor="u-dept">
-        <Select id="u-dept" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
-          <option value="">بدون واحد</option>
-          {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </Select>
-      </Field>
-      <Field label="نقش‌ها" hint="نقش محافظت‌شده قابل واگذاری نیست.">
-        <div className="flex flex-wrap gap-2">
-          {roles.filter((r) => !r.isProtected).map((r) => (
-            <label key={r.id} className="flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-sm dark:border-slate-700">
-              <input type="checkbox" checked={roleIds.includes(r.id)} onChange={(e) => setRoleIds((prev) => (e.target.checked ? [...prev, r.id] : prev.filter((x) => x !== r.id)))} />
-              {r.name}
-            </label>
-          ))}
-        </div>
-      </Field>
-      <Button type="submit" disabled={busy || mismatch || Boolean(passwordError)}>{busy ? '…' : 'ایجاد کاربر'}</Button>
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        {isSuperAdmin
-          ? 'رمز را خودتان تعیین کنید، یا خالی بگذارید تا یک رمز موقت تولید و یک‌بار نمایش داده شود.'
-          : 'در صورت خالی‌بودن رمز، یک رمز موقت تولید و یک‌بار نمایش داده می‌شود.'}
-      </p>
+        <Field label="شماره موبایل" htmlFor="u-phone" hint="اختیاری — برای ورود با رمز یک‌بار مصرف و دریافت پیامک لازم است.">
+          <Input id="u-phone" type="tel" dir="ltr" inputMode="tel" placeholder="09121234567" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" />
+        </Field>
+        {isSuperAdmin ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="رمز عبور" htmlFor="u-pass" hint="حداقل ۸ نویسه، شامل حرف و رقم." error={passwordError}>
+              <PasswordInput id="u-pass" dir="ltr" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            </Field>
+            <Field label="تکرار رمز عبور" htmlFor="u-pass2" error={mismatch ? 'رمزها یکسان نیستند.' : undefined}>
+              <PasswordInput id="u-pass2" dir="ltr" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            </Field>
+          </div>
+        ) : null}
+        <Field label="دپارتمان / واحد کاری" htmlFor="u-dept">
+          <Select id="u-dept" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+            <option value="">بدون واحد</option>
+            {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </Select>
+        </Field>
+        <Field label="نقش‌ها" hint="نقش محافظت‌شده قابل واگذاری نیست.">
+          <div className="flex flex-wrap gap-2">
+            {roles.filter((r) => !r.isProtected).map((r) => (
+              <label key={r.id} className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium transition hover:border-brand-200 hover:bg-brand-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-brand-800 dark:hover:bg-brand-950/40">
+                <input type="checkbox" checked={roleIds.includes(r.id)} onChange={(e) => setRoleIds((prev) => (e.target.checked ? [...prev, r.id] : prev.filter((x) => x !== r.id)))} />
+                {r.name}
+              </label>
+            ))}
+          </div>
+        </Field>
+      </div>
+      <div className="shrink-0 space-y-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+        <Button type="submit" disabled={busy || mismatch || Boolean(passwordError)}>{busy ? '…' : 'ایجاد کاربر'}</Button>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          {isSuperAdmin
+            ? 'رمز را خودتان تعیین کنید، یا خالی بگذارید تا یک رمز موقت تولید و یک‌بار نمایش داده شود.'
+            : 'در صورت خالی‌بودن رمز، یک رمز موقت تولید و یک‌بار نمایش داده می‌شود.'}
+        </p>
+      </div>
     </form>
   );
 }
@@ -172,7 +182,7 @@ export function UserEditForm({ user, roles, departments, onDone }: { user: EditU
       <Field label="نقش‌ها">
         <div className="flex flex-wrap gap-2">
           {roles.filter((r) => !r.isProtected).map((r) => (
-            <label key={r.id} className="flex items-center gap-1 rounded border border-slate-300 px-2 py-1 text-xs dark:border-slate-700">
+            <label key={r.id} className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-medium transition hover:border-brand-200 hover:bg-brand-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-brand-800 dark:hover:bg-brand-950/40">
               <input type="checkbox" checked={roleIds.includes(r.id)} onChange={(e) => setRoleIds((prev) => (e.target.checked ? [...prev, r.id] : prev.filter((x) => x !== r.id)))} />
               {r.name}
             </label>
@@ -231,46 +241,67 @@ export function UserRowActions({
     }
   }
 
+  async function issueResetLink() {
+    setBusy(true);
+    setNote(null);
+    try {
+      const res = await apiClient<{ link: string; emailed: boolean }>('POST', `/users/${user.id}/reset-password`);
+      // Never reveals the existing password — only a single-use reset link.
+      setNote({
+        type: 'success',
+        text: res.emailed ? 'پیوند بازنشانی به ایمیل کاربر ارسال شد.' : `پیوند بازنشانی (یک‌بارمصرف): ${res.link}`,
+      });
+      router.refresh();
+    } catch (err) {
+      setNote({ type: 'danger', text: err instanceof ApiClientError ? err.message : 'صدور پیوند بازنشانی ممکن نشد.' });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-1">
-        <Button variant="ghost" onClick={() => setOpen((v) => !v)}>
+      <div className="flex items-center gap-1.5">
+        <Button variant="secondary" size="sm" onClick={() => setOpen((v) => !v)}>
+          <Pencil aria-hidden className="h-3.5 w-3.5" />
           {open ? 'بستن' : 'ویرایش'}
         </Button>
-        <Button
-          variant="secondary"
-          disabled={busy}
-          onClick={() =>
-            void act(async () => {
-              const res = await apiClient<{ link: string; emailed: boolean }>('POST', `/users/${user.id}/reset-password`);
-              // Never reveals the existing password — only a single-use reset link.
-              setNote({
-                type: 'success',
-                text: res.emailed ? 'پیوند بازنشانی به ایمیل کاربر ارسال شد.' : `پیوند بازنشانی (یک‌بارمصرف): ${res.link}`,
-              });
-            }, 'پیوند بازنشانی صادر شد.')
-          }
-        >
-          ارسال پیوند بازنشانی
-        </Button>
-        {isSuperAdmin ? (
-          <Button variant="secondary" disabled={busy} onClick={() => setPwOpen((v) => !v)}>
-            {pwOpen ? 'بستن' : 'تعیین رمز'}
-          </Button>
-        ) : null}
-        {isSelf ? null : (
-          <Button
-            variant="danger"
-            disabled={busy}
-            onClick={() => {
-              if (window.confirm('این کاربر برای همیشه حذف شود؟ نشست‌های فعال نیز بسته می‌شوند.')) {
-                void act(() => apiClient('DELETE', `/users/${user.id}?hard=1`), 'کاربر حذف شد.');
-              }
-            }}
-          >
-            حذف
-          </Button>
-        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="سایر عملیات کاربر" disabled={busy}>
+              <MoreHorizontal aria-hidden className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuItem disabled={busy} onSelect={() => void issueResetLink()}>
+              <Mail aria-hidden className="h-4 w-4" />
+              ارسال پیوند بازنشانی
+            </DropdownMenuItem>
+            {isSuperAdmin ? (
+              <DropdownMenuItem onSelect={() => setPwOpen((v) => !v)}>
+                <KeyRound aria-hidden className="h-4 w-4" />
+                {pwOpen ? 'بستن تنظیم رمز' : 'تعیین رمز عبور'}
+              </DropdownMenuItem>
+            ) : null}
+            {isSelf ? null : (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  destructive
+                  disabled={busy}
+                  onSelect={() => {
+                    if (window.confirm('این کاربر برای همیشه حذف شود؟ نشست‌های فعال نیز بسته می‌شوند.')) {
+                      void act(() => apiClient('DELETE', `/users/${user.id}?hard=1`), 'کاربر حذف شد.');
+                    }
+                  }}
+                >
+                  <Trash2 aria-hidden className="h-4 w-4" />
+                  حذف کاربر
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       {note ? (
         <Alert variant={note.type}>
@@ -347,7 +378,7 @@ const blankOption = (): QuestionOptionDraft => ({ label: '', value: '', score: '
  * an option on a published question mints a new immutable question version, so
  * old forms keep their original choices.
  */
-export function QuestionForm({ categories, initial }: { categories: { id: number; name: string }[]; initial?: QuestionInitial }) {
+export function QuestionForm({ categories, initial, onDone }: { categories: { id: number; name: string }[]; initial?: QuestionInitial; onDone?: () => void }) {
   const { message, busy, run } = useSubmit();
   const router = useRouter();
   const editing = Boolean(initial);
@@ -406,6 +437,7 @@ export function QuestionForm({ categories, initial }: { categories: { id: number
             setTitle('');
             setText('');
             setOptions([blankOption()]);
+            onDone?.();
           }
         }, editing ? 'پرسش ویرایش شد و نسخه جدید ثبت گردید.' : 'پرسش ایجاد شد.');
       }}
