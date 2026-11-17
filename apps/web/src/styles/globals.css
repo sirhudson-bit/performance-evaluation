@@ -85,6 +85,16 @@ button {
   font: inherit;
 }
 
+/* Native checkboxes/radios follow the brand instead of the OS blue. */
+input[type='checkbox']:not(.sr-only),
+input[type='radio']:not(.sr-only) {
+  width: 1rem;
+  height: 1rem;
+  accent-color: theme('colors.brand.600');
+  cursor: pointer;
+  border-radius: 4px;
+}
+
 /* Consistent, visible focus ring for keyboard users (WCAG 2.4.7). */
 :focus-visible {
   outline: 2px solid theme('colors.brand.600');

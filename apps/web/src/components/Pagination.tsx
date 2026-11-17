@@ -36,10 +36,10 @@ export function Pagination({
 
   const linkCls = (disabled: boolean) =>
     cn(
-      'inline-flex items-center gap-1 rounded border px-3 py-1.5 text-sm',
+      'inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors',
       disabled
         ? 'pointer-events-none border-slate-200 text-slate-300 dark:border-slate-800 dark:text-slate-600'
-        : 'border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800',
+        : 'border-slate-200 bg-white text-slate-700 hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-brand-800 dark:hover:bg-brand-950/40',
     );
 
   return (

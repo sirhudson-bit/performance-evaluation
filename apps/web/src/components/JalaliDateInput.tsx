@@ -2,6 +2,8 @@
 
 import { useMemo } from 'react';
 import { toJalaali, toGregorian, isLeapJalaaliYear } from 'jalaali-js';
+import { cn } from '@pe/ui';
+import { inputClass } from './ui';
 
 /** Solar Hijri (Jalali) date input — replaces native Gregorian date pickers. */
 
@@ -61,7 +63,7 @@ export function JalaliDateInput({
         disabled={disabled}
         value={jd}
         onChange={(e) => emit(jy, jm, Number(e.target.value))}
-        className="rounded border border-slate-300 bg-white px-2 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+        className={cn(inputClass, "h-10 w-auto px-2")}
       >
         {days.map((d) => (
           <option key={d} value={d}>{d}</option>
@@ -72,7 +74,7 @@ export function JalaliDateInput({
         disabled={disabled}
         value={jm}
         onChange={(e) => emit(jy, Number(e.target.value), jd)}
-        className="flex-1 rounded border border-slate-300 bg-white px-2 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+        className={cn(inputClass, "h-10 min-w-0 flex-1 px-2")}
       >
         {MONTHS.map((m, i) => (
           <option key={i + 1} value={i + 1}>{m}</option>
@@ -83,7 +85,7 @@ export function JalaliDateInput({
         disabled={disabled}
         value={jy}
         onChange={(e) => emit(Number(e.target.value), jm, jd)}
-        className="rounded border border-slate-300 bg-white px-2 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+        className={cn(inputClass, "h-10 w-auto px-2")}
       >
         {years.map((y) => (
           <option key={y} value={y}>{y}</option>

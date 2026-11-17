@@ -761,3 +761,18 @@ width, and the tour/tip overlays fit inside 320 px and 390 px viewports.
 - Login and user creation dialog were exercised against the production build; the test browser session was used only for these checks.
 
 **Still deliberate:** the long sidebar is grouped but not collapsed per section; the app has no global search/notification centre yet.
+
+### Landing page and Excel import redesign
+
+**Landing (`/`).** Replaced the single-column marketing page with an app-intro landing: sticky brand header, hero with a live dashboard mockup, CTA pair, trust bullets, four product stats, six feature cards, a three-step flow, a dark security/access panel, a closing CTA and a legal footer. The page uses the same radius, surface, brand and typography tokens as the signed-in app and stays at zero horizontal overflow at 320/390 px.
+
+**Excel imports.** Both `UserImportCard` and `QuestionImportCard` now share `ExcelImportIntro` and `ExcelDropzone`:
+- the native English file input ("No file chosen") is gone; the real input is visually hidden behind a drag-and-drop zone;
+- one vertical three-step card: download template → upload → review, in correct RTL order;
+- selected files render as a chip with Persian size, replace and remove controls; xlsx, 1 KB minimum and 20 MB maximum are validated client-side;
+- preview uses consistent summary cards (valid / needs fixing / total), styled invalid-row alerts, a bounded table and a clear confirm action;
+- results use the same success panel, credentials panel and "new file" reset.
+
+**Shared polish.** Pagination and the Jalali date selects now use the same input/button tokens; native checkboxes use `accent-color`; all widgets inherit the updated radius/shadow/card system.
+
+**Verified.** Typecheck, lint, 43/43 tests and build clean. Browser: landing at 1440/390/320, user import form at 1440/390 (no overflow), dropzone file chip with a downloaded template, preview state with real template and disabled zero-row confirm; question form uses the identical shell.

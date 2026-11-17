@@ -1,10 +1,11 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Download, FileSpreadsheet, Upload, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, RotateCcw, Users } from 'lucide-react';
 import { apiClient, apiUpload, ApiClientError } from '@/lib/client';
-import { Alert, Badge, Button, Field, Table, Td, Input } from '@/components/ui';
+import { Alert, Badge, Button, Card, Table, Td } from '@/components/ui';
+import { ExcelImportIntro } from '@/components/ExcelImportIntro';
 import { faDigits } from '@/lib/format';
 
 interface ParsedRow {
@@ -50,19 +51,25 @@ function downloadCsv(filename: string, header: string[], rows: string[][]) {
 }
 
 /**
- * The Excel half of the users screen. Everything is staged: the file is parsed
- * and validated server-side into a preview, and nothing is written until the
- * operator presses «ثبت نهایی» — the same confirm step as the single-user form,
- * only for a whole sheet.
+ * Excel import for users. The file is parsed and validated server-side into a
+ * preview, and nothing is written until the operator confirms. The visual shell
+ * is shared with the question importer via ExcelDropzone and the same summary
+ * cards, so both flows read as one product.
  */
 export function UserImportCard() {
   const router = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [result, setResult] = useState<ConfirmResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  function reset() {
+    setFile(null);
+    setPreview(null);
+    setResult(null);
+    setError(null);
+  }
 
   async function check() {
     if (!file) {
@@ -105,7 +112,6 @@ export function UserImportCard() {
       setResult(data);
       setPreview(null);
       setFile(null);
-      if (fileRef.current) fileRef.current.value = '';
       router.refresh();
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : 'خطا در ثبت کاربران.');
@@ -115,109 +121,154 @@ export function UserImportCard() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {error ? <Alert variant="danger">{error}</Alert> : null}
 
-      <div className="flex flex-wrap items-end gap-3">
-        <a
-          href="/api/v1/users/import/template"
-          className="inline-flex items-center gap-2 rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-        >
-          <Download aria-hidden className="h-4 w-4" /> دانلود قالب اکسل
-        </a>
-        <Field label="فایل تکمیل‌شده" htmlFor="users-import-file" hint="قالب را پر کنید و همان فایل xlsx را اینجا بگذارید.">
-          <Input
-            id="users-import-file"
-            ref={fileRef}
-            type="file"
-            accept=".xlsx"
-            onChange={(e) => {
-              setFile(e.target.files?.[0] ?? null);
-              setPreview(null);
-              setResult(null);
-            }}
-            className="cursor-pointer"
-          />
-        </Field>
-        <Button type="button" variant="secondary" disabled={busy || !file} onClick={() => void check()}>
-          <Upload aria-hidden className="h-4 w-4" /> {busy && !preview ? 'در حال بررسی…' : 'بررسی فایل'}
-        </Button>
-      </div>
+      {!preview && !result ? (
+        <ExcelImportIntro
+          id="users-import-file"
+          file={file}
+          onFile={(next) => {
+            setFile(next);
+            setPreview(null);
+            setResult(null);
+          }}
+          onError={setError}
+          busy={busy}
+          onCheck={() => void check()}
+          templateHref="/api/v1/users/import/template"
+          templateBody="قالب بر اساس دپارتمان‌ها و نقش‌های همین سازمان ساخته می‌شود. ستون‌های اجباری با رنگ مشخص شده‌اند."
+          dropHint="فایل کاربران را با پسوند xlsx انتخاب کنید؛ حداکثر ۲۰ مگابایت و ۳۰۰ ردیف."
+          reviewText="فایل ابتدا فقط بررسی می‌شود؛ تا تأیید نهایی هیچ کاربری ساخته نمی‌شود."
+        />
+      ) : null}
 
       {preview ? (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <Badge tone={preview.validCount > 0 ? 'success' : 'muted'}>
-              <CheckCircle2 aria-hidden className="mr-1 h-3.5 w-3.5" /> {faDigits(preview.validCount)} ردیف معتبر
-            </Badge>
-            <Badge tone={preview.invalidCount > 0 ? 'warning' : 'muted'}>
-              <AlertTriangle aria-hidden className="mr-1 h-3.5 w-3.5" /> {faDigits(preview.invalidCount)} ردیف نیازمند اصلاح
-            </Badge>
-            <span className="text-xs text-slate-500">هیچ‌چیز هنوز ثبت نشده است.</span>
+        <Card>
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 p-4 dark:border-slate-800">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
+                <FileSpreadsheet aria-hidden className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-bold text-slate-900 dark:text-slate-100">{file?.name ?? 'فایل انتخاب‌شده'}</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">پیش‌نمایش فایل — هنوز چیزی ثبت نشده است.</p>
+              </div>
+            </div>
+            <Button type="button" variant="ghost" size="sm" onClick={reset}>
+              <RotateCcw aria-hidden className="h-3.5 w-3.5" />
+              انتخاب فایل دیگر
+            </Button>
           </div>
 
-          {preview.invalid.length > 0 ? (
+          <div className="space-y-4 p-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 dark:border-emerald-900 dark:bg-emerald-950/30">
+                <p className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                  <CheckCircle2 aria-hidden className="h-3.5 w-3.5" /> ردیف‌های معتبر
+                </p>
+                <p className="mt-1 text-2xl font-extrabold tabular text-emerald-800 dark:text-emerald-200">{faDigits(preview.validCount)}</p>
+              </div>
+              <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-3 dark:border-amber-900 dark:bg-amber-950/30">
+                <p className="flex items-center gap-1.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                  <AlertTriangle aria-hidden className="h-3.5 w-3.5" /> نیازمند اصلاح
+                </p>
+                <p className="mt-1 text-2xl font-extrabold tabular text-amber-800 dark:text-amber-200">{faDigits(preview.invalidCount)}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/40">
+                <p className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                  <Users aria-hidden className="h-3.5 w-3.5" /> کل ردیف‌ها
+                </p>
+                <p className="mt-1 text-2xl font-extrabold tabular text-slate-800 dark:text-slate-100">{faDigits(preview.validCount + preview.invalidCount)}</p>
+              </div>
+            </div>
+
+            {preview.invalid.length > 0 ? (
+              <Alert variant="warning">
+                <p className="mb-1.5 font-bold">ردیف‌های رد‌شده — اصلاح و دوباره بارگذاری کنید:</p>
+                <ul className="space-y-1 text-xs">
+                  {preview.invalid.slice(0, 20).map((row) => (
+                    <li key={row.row}>
+                      <span className="font-semibold">ردیف {faDigits(row.row)}:</span> {row.errors.join(' ')}
+                    </li>
+                  ))}
+                  {preview.invalid.length > 20 ? <li>… و {faDigits(preview.invalid.length - 20)} ردیف دیگر</li> : null}
+                </ul>
+              </Alert>
+            ) : null}
+
+            {preview.valid.length > 0 ? (
+              <div className="max-h-80 overflow-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                <Table head={['ردیف', 'نام', 'ایمیل', 'دپارتمان', 'نقش‌ها', 'وضعیت']}>
+                  {preview.valid.map((r) => (
+                    <tr key={r.rowNumber} className="transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
+                      <Td className="tabular text-xs">{faDigits(r.rowNumber)}</Td>
+                      <Td className="text-[13px] font-semibold">{r.name}</Td>
+                      <Td dir="ltr" className="text-right text-xs">{r.email}</Td>
+                      <Td className="text-xs">{r.departmentName ?? '—'}</Td>
+                      <Td className="text-xs">{r.roleNames.join('، ') || '—'}</Td>
+                      <Td><Badge tone={r.status === 'active' ? 'success' : 'muted'}>{STATUS_FA[r.status] ?? r.status}</Badge></Td>
+                    </tr>
+                  ))}
+                </Table>
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                {preview.validCount === 0 ? 'هیچ ردیف قابل ثبتی پیدا نشد؛ فایل را تکمیل و دوباره بررسی کنید.' : preview.invalidCount > 0 ? 'ردیف‌های نامعتبر نادیده گرفته می‌شوند؛ فقط ردیف‌های معتبر ثبت می‌شوند.' : 'همه ردیف‌ها معتبرند و آماده ثبت هستند.'}
+              </p>
+              <Button type="button" disabled={busy || preview.validCount === 0} onClick={() => void confirm()}>
+                <FileSpreadsheet aria-hidden className="h-4 w-4" />
+                {busy ? 'در حال ثبت…' : `ثبت ${faDigits(preview.validCount)} کاربر`}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
+      {result ? (
+        <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
+                <CheckCircle2 aria-hidden className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  {faDigits(result.created)} کاربر ثبت شد
+                  {result.failed > 0 ? ` و ${faDigits(result.failed)} ردیف ثبت نشد.` : '.'}
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">نتیجه در فهرست کاربران اعمال شد.</p>
+              </div>
+            </div>
+            <Button type="button" variant="secondary" size="sm" onClick={reset}>
+              <RotateCcw aria-hidden className="h-3.5 w-3.5" />
+              فایل جدید
+            </Button>
+          </div>
+
+          {result.errors.length > 0 ? (
             <Alert variant="warning">
-              <p className="mb-1 font-medium">ردیف‌های رد‌شده (اصلاح و دوباره بارگذاری کنید):</p>
               <ul className="space-y-0.5 text-xs">
-                {preview.invalid.slice(0, 20).map((row) => (
-                  <li key={row.row}>
-                    ردیف {faDigits(row.row)}: {row.errors.join(' ')}
-                  </li>
+                {result.errors.map((e) => (
+                  <li key={`${e.row}-${e.message}`}>ردیف {faDigits(e.row)}: {e.message}</li>
                 ))}
-                {preview.invalid.length > 20 ? <li>… و {faDigits(preview.invalid.length - 20)} ردیف دیگر</li> : null}
               </ul>
             </Alert>
           ) : null}
 
-          {preview.valid.length > 0 ? (
-            <div className="max-h-72 overflow-auto rounded border border-slate-200 dark:border-slate-800">
-              <Table head={['ردیف', 'نام', 'ایمیل', 'دپارتمان', 'نقش‌ها', 'وضعیت']}>
-                {preview.valid.map((r) => (
-                  <tr key={r.rowNumber}>
-                    <Td className="tabular">{faDigits(r.rowNumber)}</Td>
-                    <Td>{r.name}</Td>
-                    <Td dir="ltr" className="text-xs">{r.email}</Td>
-                    <Td>{r.departmentName ?? '—'}</Td>
-                    <Td className="text-xs">{r.roleNames.join('، ') || '—'}</Td>
-                    <Td><Badge tone={r.status === 'active' ? 'success' : 'muted'}>{STATUS_FA[r.status] ?? r.status}</Badge></Td>
-                  </tr>
-                ))}
-              </Table>
-            </div>
-          ) : null}
-
-          <Button type="button" disabled={busy || preview.validCount === 0} onClick={() => void confirm()}>
-            <FileSpreadsheet aria-hidden className="h-4 w-4" /> {busy ? 'در حال ثبت…' : `ثبت ${faDigits(preview.validCount)} کاربر`}
-          </Button>
-        </div>
-      ) : null}
-
-      {result ? (
-        <div className="space-y-3">
-          <Alert variant={result.failed > 0 ? 'warning' : 'success'}>
-            {faDigits(result.created)} کاربر ثبت شد
-            {result.failed > 0 ? ` و ${faDigits(result.failed)} ردیف ثبت نشد.` : '.'}
-          </Alert>
-          {result.errors.length > 0 ? (
-            <ul className="space-y-0.5 text-xs text-rose-600 dark:text-rose-400">
-              {result.errors.map((e) => (
-                <li key={`${e.row}-${e.message}`}>ردیف {faDigits(e.row)}: {e.message}</li>
-              ))}
-            </ul>
-          ) : null}
-
           {result.credentials.length > 0 ? (
-            <div className="rounded border border-amber-200 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950/40">
-              <p className="mb-2 font-medium text-amber-900 dark:text-amber-200">
+            <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+              <p className="mb-2 text-xs font-bold text-amber-900 dark:text-amber-200">
                 رمز یک‌بارمصرف {faDigits(result.credentials.length)} کاربر ساخته شد؛ همین حالا ذخیره کنید — دیگر نمایش داده نمی‌شود.
               </p>
-              <div className="max-h-56 overflow-auto">
+              <div className="max-h-56 overflow-auto rounded-lg border border-amber-200 bg-white dark:border-amber-900 dark:bg-slate-900">
                 <Table head={['نام', 'ایمیل', 'رمز']}>
                   {result.credentials.map((c) => (
                     <tr key={c.email}>
-                      <Td>{c.name}</Td>
-                      <Td dir="ltr" className="text-xs">{c.email}</Td>
+                      <Td className="text-xs">{c.name}</Td>
+                      <Td dir="ltr" className="text-right text-xs">{c.email}</Td>
                       <Td dir="ltr" className="font-mono text-xs">{c.password}</Td>
                     </tr>
                   ))}
@@ -226,6 +277,7 @@ export function UserImportCard() {
               <Button
                 type="button"
                 variant="secondary"
+                size="sm"
                 className="mt-3"
                 onClick={() =>
                   downloadCsv(
@@ -235,7 +287,7 @@ export function UserImportCard() {
                   )
                 }
               >
-                <Download aria-hidden className="h-4 w-4" /> دانلود فایل رمزها (CSV)
+                <Download aria-hidden className="h-3.5 w-3.5" /> دانلود فایل رمزها (CSV)
               </Button>
             </div>
           ) : null}
