@@ -29,6 +29,7 @@ import { agreementsRouter } from './modules/agreements/routes.js';
 import { adminRouter } from './modules/admin/routes.js';
 import { smsRouter } from './modules/sms/routes.js';
 import { jobsRouter } from './modules/jobs/routes.js';
+import { notificationsRouter } from './modules/notifications/routes.js';
 
 /**
  * Builds the Express application (no network listen here, so tests can import
@@ -93,6 +94,7 @@ export function createApp(): Express {
   api.use('/admin/sms', smsRouter);
   api.use('/admin', adminRouter);
   api.use('/jobs', jobsRouter);
+  api.use('/notifications', notificationsRouter);
 
   app.use('/api/v1', api);
 

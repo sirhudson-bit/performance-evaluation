@@ -7,6 +7,7 @@ import { recordAudit } from '../../lib/audit.js';
 import { requirePermission, getAuth } from '../../middleware/auth.js';
 import { requireOrganization } from '../../middleware/scope.js';
 import { validateBody } from '../../middleware/validate.js';
+import { notifyUser } from '../../lib/notifications.js';
 
 export const cyclesRouter = Router();
 
@@ -247,7 +248,7 @@ cyclesRouter.post(
         });
         if (existing) continue;
 
-        await db.evaluationAssignment.create({
+        const assignment = await db.evaluationAssignment.create({
           data: {
             organizationId: orgId,
             cycleId,
@@ -260,6 +261,14 @@ cyclesRouter.post(
             dueDate: body.dueDate ?? cycle.submissionDeadline ?? cycle.endDate,
             formVersionId: cycle.formVersionId,
           },
+        });
+        await notifyUser({
+          organizationId: orgId,
+          userId: evaluatorUserId,
+          type: 'evaluation_assigned',
+          title: 'ارزیابی جدید برای شما',
+          body: `${employee.firstName} ${employee.lastName} در دوره «${cycle.name}» برای شما ثبت شد.`,
+          data: { assignmentId: assignment.id, cycleId },
         });
         created += 1;
       }

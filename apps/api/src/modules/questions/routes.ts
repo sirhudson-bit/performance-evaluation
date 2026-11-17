@@ -69,9 +69,24 @@ questionsRouter.get(
     const orgId = requireOrganization(auth);
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
     const categoryId = req.query.categoryId ? Number(req.query.categoryId) : undefined;
+    const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 120) : undefined;
 
     const items = await db.question.findMany({
-      where: { organizationId: orgId, ...(status ? { status } : {}), ...(categoryId ? { categoryId } : {}) },
+      where: {
+        organizationId: orgId,
+        ...(status ? { status } : {}),
+        ...(categoryId ? { categoryId } : {}),
+        ...(q
+          ? {
+              OR: [
+                { title: { contains: q, mode: 'insensitive' as const } },
+                { text: { contains: q, mode: 'insensitive' as const } },
+                { stableKey: { contains: q, mode: 'insensitive' as const } },
+                { category: { is: { name: { contains: q, mode: 'insensitive' as const } } } },
+              ],
+            }
+          : {}),
+      },
       include: { options: { orderBy: { sortOrder: 'asc' } }, category: { select: { id: true, name: true } } },
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
     });

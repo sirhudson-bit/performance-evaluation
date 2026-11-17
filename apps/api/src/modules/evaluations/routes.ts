@@ -8,6 +8,7 @@ import { requirePermission, getAuth, hasPermission } from '../../middleware/auth
 import { requireOrganization, resolveEmployeeScope } from '../../middleware/scope.js';
 import { validateBody } from '../../middleware/validate.js';
 import { saveResponse, computeAssignmentScores, computeFinalResult } from './service.js';
+import { notifyUser } from '../../lib/notifications.js';
 import type { QuestionSnapshot } from '../forms/service.js';
 
 export const evaluationsRouter = Router();
@@ -288,6 +289,22 @@ evaluationsRouter.post(
       });
       await db.evaluationAssignment.updateMany({ where: { cycleId, employeeId, status: 'approved' }, data: { status: 'published' } });
       published.push(employeeId);
+    }
+
+    if (published.length > 0) {
+      const employees = await db.employee.findMany({ where: { id: { in: published } }, select: { userId: true, firstName: true, lastName: true } });
+      await Promise.all(
+        employees.map((employee) =>
+          notifyUser({
+            organizationId: orgId,
+            userId: employee.userId,
+            type: 'result_published',
+            title: 'نتیجه ارزیابی شما منتشر شد',
+            body: `نتیجه دوره «${cycle.name}» برای شما قابل مشاهده است.`,
+            data: { cycleId },
+          }),
+        ),
+      );
     }
 
     await recordAudit({ organizationId: orgId, actorUserId: auth.id, action: 'results.published', entityType: 'evaluation_cycle', entityId: cycleId, after: { published: published.length, blocked: blocked.length } }, req);

@@ -13,6 +13,7 @@ import { cn } from '@pe/ui';
 import { apiClient } from '@/lib/client';
 import type { SessionUser } from '@/lib/api';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { NotificationBell } from '@/components/NotificationBell';
 import { FloatingTips } from '@/components/FloatingTips';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -84,6 +85,7 @@ function SidebarContent({
   onNavigate,
   onLogout,
   onClose,
+  compact = false,
 }: {
   user: SessionUser;
   groups: NavGroup[];
@@ -91,7 +93,16 @@ function SidebarContent({
   onNavigate: () => void;
   onLogout: () => void;
   onClose?: () => void;
+  compact?: boolean;
 }) {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      groups.map((group) => [
+        group.title,
+        compact && !group.items.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`)),
+      ]),
+    ),
+  );
   return (
     <div className="flex h-full flex-col bg-white dark:bg-slate-900">
       <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-4 lg:hidden">
@@ -108,9 +119,24 @@ function SidebarContent({
       </div>
 
       <nav aria-label="ناوبری اصلی" className="flex-1 space-y-5 overflow-y-auto px-3 pb-4 pt-2">
-        {groups.map((group) => (
+        {groups.map((group) => {
+          const groupActive = group.items.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+          const isCollapsed = Boolean(collapsed[group.title]);
+          return (
           <div key={group.title}>
-            <p className="px-3 pb-1.5 text-[10px] font-bold tracking-wide text-slate-400">{group.title}</p>
+            <button
+              type="button"
+              onClick={() => setCollapsed((prev) => ({ ...prev, [group.title]: !prev[group.title] }))}
+              aria-expanded={!isCollapsed}
+              className="flex w-full items-center justify-between rounded-lg px-3 pb-1.5 pt-1 text-[10px] font-bold tracking-wide text-slate-400 transition hover:bg-slate-50 hover:text-slate-600 dark:hover:bg-slate-800/60 dark:hover:text-slate-300"
+            >
+              <span className="flex items-center gap-1.5">
+                {group.title}
+                {groupActive && isCollapsed ? <span className="h-1.5 w-1.5 rounded-full bg-brand-500" /> : null}
+              </span>
+              <ChevronDown aria-hidden className={cn('h-3 w-3 transition-transform', isCollapsed && '-rotate-90')} />
+            </button>
+            {!isCollapsed ? (
             <ul className="space-y-0.5">
               {group.items.map((item) => {
                 const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -145,8 +171,10 @@ function SidebarContent({
                 );
               })}
             </ul>
+            ) : null}
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       <div className="border-t border-slate-100 p-3 dark:border-slate-800">
@@ -224,6 +252,7 @@ export function Shell({ user, orgDisplayName, children }: { user: SessionUser; o
             <HelpCircle aria-hidden className="h-4 w-4" />
             راهنما
           </Link>
+          <NotificationBell />
           <ThemeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -281,6 +310,7 @@ export function Shell({ user, orgDisplayName, children }: { user: SessionUser; o
               onNavigate={() => setMobileOpen(false)}
               onLogout={() => void logout()}
               onClose={() => setMobileOpen(false)}
+              compact
             />
           </DialogContent>
         </Dialog>

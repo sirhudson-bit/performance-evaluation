@@ -776,3 +776,13 @@ width, and the tour/tip overlays fit inside 320 px and 390 px viewports.
 **Shared polish.** Pagination and the Jalali date selects now use the same input/button tokens; native checkboxes use `accent-color`; all widgets inherit the updated radius/shadow/card system.
 
 **Verified.** Typecheck, lint, 43/43 tests and build clean. Browser: landing at 1440/390/320, user import form at 1440/390 (no overflow), dropzone file chip with a downloaded template, preview state with real template and disabled zero-row confirm; question form uses the identical shell.
+
+### Search, collapsible navigation and notification centre
+
+- **Users search/filter.** `/admin/users` accepts `q` (name, e-mail, phone, employee first/last name, employee number) and `status` (active/suspended/archived). The API applies the same `where` to rows and the total, so pagination is correct. The list header has a Persian search field, status select, primary search button, clear link and a filtered empty state.
+- **Questions search/filter.** `/admin/questions` accepts `q` (title, text, stable key, category name), `categoryId` and `status`; the header exposes the same search/select/clear controls.
+- **Collapsible sidebar.** Each nav group is a button with `aria-expanded`. Desktop starts with all groups open; the mobile sheet starts with only the active group open, which cuts the 20+ item list down to the relevant six. A dot marks the active group while collapsed.
+- **Notification centre.** `NotificationBell` in the shell header uses a Radix Popover: unread badge, ten latest items, relative Persian times, optimistic read, mark-all-read and a loading skeleton. `/api/v1/notifications` lists/marks the signed-in user's inbox; assignments and result publication write notifications through `notifyUser()`.
+- **New dependency:** `@radix-ui/react-popover` (web workspace) for the ready notification panel.
+
+**Verified.** Search API returned the expected filtered totals (`employee` → 2 users; `quality` → 1 question); marking a seeded test notification read returned `unread: 0`; mobile sidebar started with only the active group open; users page at 390 px had zero page overflow. Typecheck, lint, 43/43 tests and build clean before deploy.

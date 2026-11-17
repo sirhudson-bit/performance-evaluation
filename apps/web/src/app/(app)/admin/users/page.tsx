@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { apiData, getSession, hasPermission } from '@/lib/api';
-import { PageHeader, Card, CardHeader, CardBody, Table, Td, EmptyState, StatusBadge, Badge } from '@/components/ui';
+import { PageHeader, Card, CardHeader, CardBody, Table, Td, EmptyState, StatusBadge, Badge, Button, Input, Select } from '@/components/ui';
 import { UserRowActions } from '@/components/AdminForms';
 import { AddUserDialog } from '@/components/AddUserDialog';
 import { UserImportCard } from '@/components/UserImportCard';
 import { Pagination } from '@/components/Pagination';
 import { faDigits } from '@/lib/format';
+import { Search, X } from 'lucide-react';
 
 interface UserItem {
   id: number; name: string; email: string; phone: string | null; status: string;
@@ -21,16 +22,21 @@ function initials(name?: string | null): string {
   return parts.slice(0, 2).map((p) => p[0]).join('') || '؟';
 }
 
-export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<{ page?: string; perPage?: string }> }) {
+export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<{ page?: string; perPage?: string; q?: string; status?: string }> }) {
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));
   const perPage = Math.min(100, Math.max(5, Number(sp.perPage ?? 25)));
+  const q = (sp.q ?? '').trim().slice(0, 120);
+  const status = ['active', 'suspended', 'archived'].includes(sp.status ?? '') ? sp.status! : '';
+  const query = new URLSearchParams({ page: String(page), perPage: String(perPage) });
+  if (q) query.set('q', q);
+  if (status) query.set('status', status);
 
   const me = await getSession();
   const isSuperAdmin = hasPermission(me, 'settings.manage');
   const canReport = hasPermission(me, 'reports.view');
   const [users, roles, units] = await Promise.all([
-    apiData<{ items: UserItem[]; total: number }>(`/users?page=${page}&perPage=${perPage}`),
+    apiData<{ items: UserItem[]; total: number }>(`/users?${query.toString()}`),
     apiData<{ items: RoleItem[] }>('/roles'),
     apiData<{ items: Unit[] }>('/organization/units'),
   ]);
@@ -50,9 +56,32 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
       />
 
       <Card>
-        <CardHeader title="فهرست کاربران" subtitle={`${faDigits(users?.total ?? 0)} کاربر در سازمان`} />
+        <CardHeader
+          title="فهرست کاربران"
+          subtitle={`${faDigits(users?.total ?? 0)} کاربر${q || status ? ' مطابق جستجو' : ' در سازمان'}`}
+          actions={
+            <form method="get" className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search aria-hidden className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <Input name="q" defaultValue={q} placeholder="نام، ایمیل یا کد پرسنلی…" aria-label="جستجوی کاربر" className="h-9 w-52 pr-9 text-xs" />
+              </div>
+              <Select name="status" defaultValue={status} aria-label="فیلتر وضعیت" className="h-9 w-32 text-xs">
+                <option value="">همه وضعیت‌ها</option>
+                <option value="active">فعال</option>
+                <option value="suspended">معلق</option>
+                <option value="archived">بایگانی</option>
+              </Select>
+              <Button type="submit" size="sm">جستجو</Button>
+              {q || status ? (
+                <Link href="/admin/users" className="inline-flex h-9 items-center gap-1 rounded-xl px-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-200">
+                  <X aria-hidden className="h-3.5 w-3.5" /> پاک کردن
+                </Link>
+              ) : null}
+            </form>
+          }
+        />
         {!users || users.items.length === 0 ? (
-          <EmptyState title="کاربری یافت نشد" description="با دکمه «افزودن کاربر» اولین حساب را بسازید." />
+          <EmptyState title={q || status ? 'کاربری با این جستجو پیدا نشد' : 'کاربری یافت نشد'} description={q || status ? 'عبارت جستجو یا فیلتر وضعیت را تغییر دهید.' : 'با دکمه «افزودن کاربر» اولین حساب را بسازید.'} />
         ) : (
           <>
           <div className="hidden md:block">
@@ -132,7 +161,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           </div>
           </>
         )}
-        <Pagination page={page} perPage={perPage} total={users?.total ?? 0} basePath="/admin/users" />
+        <Pagination page={page} perPage={perPage} total={users?.total ?? 0} basePath="/admin/users" params={{ q, status }} />
       </Card>
 
       {hasPermission(me, 'users.create') ? (

@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { apiData, getSession, hasPermission } from '@/lib/api';
-import { PageHeader, Card, CardHeader, CardBody, Table, Td, EmptyState, StatusBadge, Badge } from '@/components/ui';
+import { PageHeader, Card, CardHeader, CardBody, Table, Td, EmptyState, StatusBadge, Badge, Button, Input, Select } from '@/components/ui';
 import { QuestionImportCard } from '@/components/QuestionImportCard';
 import { AddQuestionDialog } from '@/components/AddQuestionDialog';
 import { faDigits } from '@/lib/format';
+import { Search, X } from 'lucide-react';
 
 interface Question { id: number; stableKey: string; title: string; answerType: string; status: string; weight: string; category: { name: string } | null; currentVersion: number }
 
@@ -12,11 +13,20 @@ const ANSWER_LABELS: Record<string, string> = {
   percentage: 'درصد', numeric: 'عدد', short_text: 'متن کوتاه', long_text: 'متن بلند', yes_no: 'بله/خیر',
 };
 
-export default async function AdminQuestionsPage() {
+export default async function AdminQuestionsPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; categoryId?: string }> }) {
+  const sp = await searchParams;
+  const q = (sp.q ?? '').trim().slice(0, 120);
+  const status = ['active', 'archived', 'draft'].includes(sp.status ?? '') ? sp.status! : '';
+  const categoryId = sp.categoryId && /^\d+$/.test(sp.categoryId) ? sp.categoryId : '';
+  const query = new URLSearchParams();
+  if (q) query.set('q', q);
+  if (status) query.set('status', status);
+  if (categoryId) query.set('categoryId', categoryId);
+
   const user = await getSession();
   const canEdit = hasPermission(user, 'questions.edit');
   const [questions, categories] = await Promise.all([
-    apiData<{ items: Question[] }>('/questions'),
+    apiData<{ items: Question[] }>(`/questions${query.toString() ? `?${query.toString()}` : ''}`),
     apiData<{ items: { id: number; name: string }[] }>('/questions/categories'),
   ]);
 
@@ -31,10 +41,34 @@ export default async function AdminQuestionsPage() {
       <Card>
         <CardHeader
           title="پرسش‌ها"
-          subtitle={`${faDigits(questions?.items.length ?? 0)} پرسش در بانک`}
+          subtitle={`${faDigits(questions?.items.length ?? 0)} پرسش${q || status || categoryId ? ' مطابق جستجو' : ' در بانک'}`}
+          actions={
+            <form method="get" className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search aria-hidden className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                <Input name="q" defaultValue={q} placeholder="عنوان، متن یا شناسه…" aria-label="جستجوی پرسش" className="h-9 w-52 pr-9 text-xs" />
+              </div>
+              <Select name="categoryId" defaultValue={categoryId} aria-label="فیلتر دسته" className="h-9 w-36 text-xs">
+                <option value="">همه دسته‌ها</option>
+                {(categories?.items ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </Select>
+              <Select name="status" defaultValue={status} aria-label="فیلتر وضعیت" className="h-9 w-28 text-xs">
+                <option value="">همه وضعیت‌ها</option>
+                <option value="active">فعال</option>
+                <option value="archived">بایگانی</option>
+                <option value="draft">پیش‌نویس</option>
+              </Select>
+              <Button type="submit" size="sm">جستجو</Button>
+              {q || status || categoryId ? (
+                <Link href="/admin/questions" className="inline-flex h-9 items-center gap-1 rounded-xl px-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-200">
+                  <X aria-hidden className="h-3.5 w-3.5" /> پاک کردن
+                </Link>
+              ) : null}
+            </form>
+          }
         />
         {!questions || questions.items.length === 0 ? (
-          <EmptyState title="پرسشی ثبت نشده است" description="با دکمه «پرسش جدید» اولین پرسش را بسازید." />
+          <EmptyState title={q || status || categoryId ? 'پرسشی با این جستجو پیدا نشد' : 'پرسشی ثبت نشده است'} description={q || status || categoryId ? 'عبارت جستجو یا فیلترها را تغییر دهید.' : 'با دکمه «پرسش جدید» اولین پرسش را بسازید.'} />
         ) : (
           <>
           <div className="hidden md:block">

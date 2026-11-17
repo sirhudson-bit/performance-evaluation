@@ -49,18 +49,28 @@ usersRouter.get(
     const auth = getAuth(req);
     const orgId = requireOrganization(auth);
     const { page, perPage, q } = query<{ page: number; perPage: number; q?: string }>(req);
+    const status = typeof req.query.status === 'string' && ['active', 'suspended', 'archived'].includes(req.query.status) ? req.query.status : undefined;
+    const where = {
+      organizationId: orgId,
+      ...(status ? { status } : {}),
+      ...(q ? {
+        OR: [
+          { name: { contains: q, mode: 'insensitive' as const } },
+          { email: { contains: q, mode: 'insensitive' as const } },
+          { phone: { contains: q } },
+          { employee: { is: { OR: [{ firstName: { contains: q, mode: 'insensitive' as const } }, { lastName: { contains: q, mode: 'insensitive' as const } }, { employeeNo: { contains: q, mode: 'insensitive' as const } }] } } },
+        ],
+      } : {}),
+    };
 
     const rows = await db.user.findMany({
-      where: {
-        organizationId: orgId,
-        ...(q ? { OR: [{ name: { contains: q, mode: 'insensitive' } }, { email: { contains: q, mode: 'insensitive' } }] } : {}),
-      },
+      where,
       select: selectUser(),
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * perPage,
       take: perPage,
     });
-    const total = await db.user.count({ where: { organizationId: orgId } });
+    const total = await db.user.count({ where });
     sendData(res, { items: rows, total, page, perPage });
   }),
 );
